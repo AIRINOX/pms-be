@@ -59,7 +59,7 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 
 	// Find user by username
 	var user models.User
-	if err := facades.Orm().Query().Where("username", request.Username).First(&user); err != nil {
+	if err := facades.Orm().Query().With("Role").Where("username", request.Username).FirstOrFail(&user); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ctx.Response().Status(401).Json(http.Json{
 				"error":   "Invalid credentials",
@@ -89,7 +89,7 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 	}
 
 	// Generate JWT token
-	token, err := facades.Auth().LoginUsingID(user.ID)
+	token, err := facades.Auth(ctx).LoginUsingID(user.ID)
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Failed to generate token",
@@ -100,12 +100,13 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 	return ctx.Response().Status(200).Json(http.Json{
 		"message": "Login successful",
 		"user": http.Json{
-			"id":       user.ID,
-			"username": user.Username,
-			"name":     user.Name,
-			"email":    user.Email,
-			"phone":    user.Phone,
-			"role_id":  user.RoleID,
+			"id":        user.ID,
+			"username":  user.Username,
+			"name":      user.Name,
+			"email":     user.Email,
+			"phone":     user.Phone,
+			"role_id":   user.RoleID,
+			"role_key":  user.Role.Key, // Add this
 			"is_active": user.IsActive,
 		},
 		"token": token,

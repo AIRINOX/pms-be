@@ -45,4 +45,45 @@ func Api() {
 		// List all roles
 		router.Get("/roles", roleController.Index)
 	})
+
+	// Client management routes (commercial/admin only)
+	clientController := controllers.NewClientController()
+	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
+		// List clients with pagination, search and filtering
+		router.Get("/clients", clientController.Index)
+
+		// Get specific client with sites
+		router.Get("/clients/{clientId}", clientController.Show)
+
+		// Create new client
+		router.Post("/clients", clientController.Store)
+
+		// Update existing client
+		router.Put("/clients/{clientId}", clientController.Update)
+
+		// Delete client
+		router.Delete("/clients/{clientId}", clientController.Destroy)
+
+		// Get all orders for a specific client
+		router.Get("/clients/{clientId}/orders", clientController.GetClientOrders)
+	})
+
+	// Client site management routes (commercial/admin only)
+	clientSiteController := controllers.NewClientSiteController()
+	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
+		// List sites for a specific client
+		router.Get("/clients/{clientId}/sites", clientSiteController.Index)
+
+		// Get specific client site
+		router.Get("/clients/{clientId}/sites/{siteId}", clientSiteController.Show)
+
+		// Create new client site
+		router.Post("/clients/{clientId}/sites", clientSiteController.Store)
+
+		// Update existing client site
+		router.Put("/clients/{clientId}/sites/{siteId}", clientSiteController.Update)
+
+		// Delete client site
+		router.Delete("/clients/{clientId}/sites/{siteId}", clientSiteController.Destroy)
+	})
 }

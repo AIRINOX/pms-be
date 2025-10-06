@@ -14,12 +14,12 @@ func init() {
 		// in web browsers. You are free to adjust these settings as needed.
 		//
 		// To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-		"paths":                []string{},
-		"allowed_methods":      []string{"*"},
-		"allowed_origins":      []string{"*"},
-		"allowed_headers":      []string{"*"},
-		"exposed_headers":      []string{},
-		"max_age":              0,
-		"supports_credentials": false,
+		"paths":                []string{"*"}, // Allow CORS for all paths
+		"allowed_methods":      []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		"allowed_origins":      []string{"*"}, // Allow all origins - customize this in production
+		"allowed_headers":      []string{"Content-Type", "X-CSRF-Token", "X-Requested-With", "Accept", "Origin", "Authorization"},
+		"exposed_headers":      []string{"Content-Length", "Content-Type"},
+		"max_age":              86400, // 24 hours
+		"supports_credentials": true,  // Enable if you need to send cookies or auth headers
 	})
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/goravel/framework/contracts/http"
@@ -24,22 +25,22 @@ func NewUserController() *UserController {
 
 // CreateUserRequest represents the user creation request payload
 type CreateUserRequest struct {
-	Username string `json:"username" form:"username" validate:"required|min:3|max:50"`
-	Password string `json:"password" form:"password" validate:"required|min:6"`
-	Name     string `json:"name" form:"name" validate:"required|min:2|max:100"`
+	Username string `json:"username" form:"username" validate:"required|min_len:3|max_len:50"`
+	Password string `json:"password" form:"password" validate:"required|min_len:6"`
+	Name     string `json:"name" form:"name" validate:"required|min_len:2|max_len:100"`
 	Email    string `json:"email" form:"email" validate:"required|email"`
-	Phone    string `json:"phone" form:"phone" validate:"max:20"`
+	Phone    string `json:"phone" form:"phone" validate:"max_len:20"`
 	RoleID   uint   `json:"role_id" form:"role_id" validate:"required|numeric"`
 	IsActive *bool  `json:"is_active" form:"is_active"`
 }
 
 // UpdateUserRequest represents the user update request payload
 type UpdateUserRequest struct {
-	Username string `json:"username" form:"username" validate:"min:3|max:50"`
-	Password string `json:"password" form:"password" validate:"min:6"`
-	Name     string `json:"name" form:"name" validate:"min:2|max:100"`
+	Username string `json:"username" form:"username" validate:"min_len:3|max_len:50"`
+	Password string `json:"password" form:"password" validate:"min_len:6"`
+	Name     string `json:"name" form:"name" validate:"min_len:2|max_len:100"`
 	Email    string `json:"email" form:"email" validate:"email"`
-	Phone    string `json:"phone" form:"phone" validate:"max:20"`
+	Phone    string `json:"phone" form:"phone" validate:"max_len:20"`
 	RoleID   uint   `json:"role_id" form:"role_id" validate:"numeric"`
 	IsActive *bool  `json:"is_active" form:"is_active"`
 }
@@ -53,7 +54,7 @@ func (r *UserController) isAdmin(ctx http.Context) bool {
 	}
 
 	// Load the role relationship
-	if err := facades.Orm().Query().With("Role").Where("id", user.ID).First(&user); err != nil {
+	if err := facades.Orm().Query().With("Role").Where("id", user.ID).FirstOrFail(&user); err != nil {
 		return false
 	}
 
@@ -69,15 +70,64 @@ func (r *UserController) Index(ctx http.Context) http.Response {
 		})
 	}
 
-	page, _ := strconv.Atoi(ctx.Request().Query("page", "1"))
-	perPage, _ := strconv.Atoi(ctx.Request().Query("per_page", "10"))
-	search := ctx.Request().Query("search", "")
+	// Parse new query parameters
+	pageIndex, _ := strconv.Atoi(ctx.Request().Query("pageIndex", "1"))
+	pageSize, _ := strconv.Atoi(ctx.Request().Query("pageSize", "10"))
+	searchQuery := ctx.Request().Query("query", "")
+	sortKey := ctx.Request().Query("sort[key]", "")
+	sortOrder := ctx.Request().Query("sort[order]", "")
 
+	// Parse filter data
+	filterName := ctx.Request().Query("filterData[name]", "")
+	filterRoles := ctx.Request().QueryArray("filterData[role][]")
+	filterStatuses := ctx.Request().QueryArray("filterData[status][]")
+
+	fmt.Println(filterRoles)
+	fmt.Println(filterStatuses)
 	query := facades.Orm().Query().With("Role")
 
-	if search != "" {
+	// Apply search filter
+	if searchQuery != "" {
 		query = query.Where("username LIKE ? OR name LIKE ? OR email LIKE ?",
-			"%"+search+"%", "%"+search+"%", "%"+search+"%")
+			"%"+searchQuery+"%", "%"+searchQuery+"%", "%"+searchQuery+"%")
+	}
+
+	// Apply name filter
+	if filterName != "" {
+		query = query.Where("name LIKE ?", "%"+filterName+"%")
+	}
+
+	// Apply role filter
+	if len(filterRoles) > 0 {
+		var roleValues []any
+		for _, role := range filterRoles {
+			roleValues = append(roleValues, role)
+		}
+		query = query.Join("left join roles on users.role_id = roles.id")
+		query = query.WhereIn("roles.key", roleValues)
+	}
+
+	// Apply status filter
+	if len(filterStatuses) > 0 {
+		var statusValues []any
+		for _, status := range filterStatuses {
+			switch status {
+			case "true":
+				statusValues = append(statusValues, true)
+			case "false":
+				statusValues = append(statusValues, false)
+			}
+		}
+		if len(statusValues) > 0 {
+			query = query.WhereIn("is_active", statusValues)
+		}
+	}
+
+	// Apply sorting
+	if sortKey != "" && sortOrder != "" {
+		query = query.OrderBy(sortKey, sortOrder)
+	} else {
+		query = query.OrderBy("id", "desc") // default sorting
 	}
 
 	var users []models.User
@@ -92,8 +142,8 @@ func (r *UserController) Index(ctx http.Context) http.Response {
 	}
 
 	// Get paginated results
-	offset := (page - 1) * perPage
-	if err := query.Offset(offset).Limit(perPage).Find(&users); err != nil {
+	offset := (pageIndex - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Find(&users); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve users",
@@ -103,10 +153,10 @@ func (r *UserController) Index(ctx http.Context) http.Response {
 	return ctx.Response().Status(200).Json(http.Json{
 		"users": users,
 		"pagination": http.Json{
-			"current_page": page,
-			"per_page":     perPage,
+			"current_page": pageIndex,
+			"page_size":    pageSize,
 			"total":        total,
-			"total_pages":  (total + int64(perPage) - 1) / int64(perPage),
+			"total_pages":  (total + int64(pageSize) - 1) / int64(pageSize),
 		},
 	})
 }
@@ -166,6 +216,10 @@ func (r *UserController) Store(ctx http.Context) http.Response {
 		})
 	}
 
+	// log request content in console
+	facades.Log().Info(request.Name)
+	// not in file i need log in console cli
+
 	// Validate the request data
 	validator, err := facades.Validation().Make(map[string]any{
 		"username":  request.Username,
@@ -176,11 +230,11 @@ func (r *UserController) Store(ctx http.Context) http.Response {
 		"role_id":   request.RoleID,
 		"is_active": request.IsActive,
 	}, map[string]string{
-		"username": "required|min:3|max:50",
-		"password": "required|min:6",
-		"name":     "required|min:2|max:100",
+		"username": "required|min_len:3|max_len:50",
+		"password": "required|min_len:6",
+		"name":     "required|min_len:2|max_len:100",
 		"email":    "required|email",
-		"phone":    "max:20",
+		"phone":    "max_len:20",
 		"role_id":  "required|numeric",
 	})
 
@@ -199,7 +253,7 @@ func (r *UserController) Store(ctx http.Context) http.Response {
 
 	// Check if username already exists
 	var existingUser models.User
-	if err := facades.Orm().Query().Where("username", request.Username).First(&existingUser); err == nil {
+	if err := facades.Orm().Query().Where("username", request.Username).FirstOrFail(&existingUser); err == nil {
 		return ctx.Response().Status(409).Json(http.Json{
 			"error":   "Username already exists",
 			"message": "A user with this username already exists",
@@ -207,7 +261,7 @@ func (r *UserController) Store(ctx http.Context) http.Response {
 	}
 
 	// Check if email already exists
-	if err := facades.Orm().Query().Where("email", request.Email).First(&existingUser); err == nil {
+	if err := facades.Orm().Query().Where("email", request.Email).FirstOrFail(&existingUser); err == nil {
 		return ctx.Response().Status(409).Json(http.Json{
 			"error":   "Email already exists",
 			"message": "A user with this email already exists",
@@ -216,7 +270,7 @@ func (r *UserController) Store(ctx http.Context) http.Response {
 
 	// Verify role exists
 	var role models.Role
-	if err := facades.Orm().Query().Where("id", request.RoleID).First(&role); err != nil {
+	if err := facades.Orm().Query().Where("id", request.RoleID).FirstOrFail(&role); err != nil {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid role",
 			"message": "The specified role does not exist",
@@ -294,7 +348,7 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 
 	// Find existing user
 	var user models.User
-	if err := facades.Orm().Query().Where("id", id).First(&user); err != nil {
+	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&user); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
@@ -313,11 +367,11 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 
 	if request.Username != "" {
 		validationData["username"] = request.Username
-		validationRules["username"] = "min:3|max:50"
+		validationRules["username"] = "min_len:3|max_len:50"
 
 		// Check if username already exists (excluding current user)
 		var existingUser models.User
-		if err := facades.Orm().Query().Where("username", request.Username).Where("id != ?", id).First(&existingUser); err == nil {
+		if err := facades.Orm().Query().Where("username", request.Username).Where("id != ?", id).FirstOrFail(&existingUser); err == nil {
 			return ctx.Response().Status(409).Json(http.Json{
 				"error":   "Username already exists",
 				"message": "A user with this username already exists",
@@ -331,7 +385,7 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 
 		// Check if email already exists (excluding current user)
 		var existingUser models.User
-		if err := facades.Orm().Query().Where("email", request.Email).Where("id != ?", id).First(&existingUser); err == nil {
+		if err := facades.Orm().Query().Where("email", request.Email).Where("id != ?", id).FirstOrFail(&existingUser); err == nil {
 			return ctx.Response().Status(409).Json(http.Json{
 				"error":   "Email already exists",
 				"message": "A user with this email already exists",
@@ -341,17 +395,17 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 
 	if request.Password != "" {
 		validationData["password"] = request.Password
-		validationRules["password"] = "min:6"
+		validationRules["password"] = "min_len:6"
 	}
 
 	if request.Name != "" {
 		validationData["name"] = request.Name
-		validationRules["name"] = "min:2|max:100"
+		validationRules["name"] = "min_len:2|max_len:100"
 	}
 
 	if request.Phone != "" {
 		validationData["phone"] = request.Phone
-		validationRules["phone"] = "max:20"
+		validationRules["phone"] = "max_len:20"
 	}
 
 	if request.RoleID != 0 {
@@ -360,7 +414,7 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 
 		// Verify role exists
 		var role models.Role
-		if err := facades.Orm().Query().Where("id", request.RoleID).First(&role); err != nil {
+		if err := facades.Orm().Query().Where("id", request.RoleID).FirstOrFail(&role); err != nil {
 			return ctx.Response().Status(400).Json(http.Json{
 				"error":   "Invalid role",
 				"message": "The specified role does not exist",
@@ -453,7 +507,7 @@ func (r *UserController) Destroy(ctx http.Context) http.Response {
 
 	// Find existing user
 	var user models.User
-	if err := facades.Orm().Query().With("Role").Where("id", id).First(&user); err != nil {
+	if err := facades.Orm().Query().With("Role").Where("id", id).FirstOrFail(&user); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
@@ -516,7 +570,7 @@ func (r *UserController) ToggleStatus(ctx http.Context) http.Response {
 
 	// Find existing user
 	var user models.User
-	if err := facades.Orm().Query().Where("id", id).First(&user); err != nil {
+	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&user); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
