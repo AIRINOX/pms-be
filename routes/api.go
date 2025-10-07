@@ -46,6 +46,81 @@ func Api() {
 		router.Get("/roles", roleController.Index)
 	})
 
+	// Storage Location management routes (methodes/admin only)
+	storageLocationController := controllers.NewStorageLocationController()
+	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
+		// List storage locations with pagination, search and filtering
+		router.Get("/storage-locations", storageLocationController.Index)
+
+		// Get specific storage location
+		router.Get("/storage-locations/{id}", storageLocationController.Show)
+
+		// Create new storage location
+		router.Post("/storage-locations", storageLocationController.Store)
+
+		// Update existing storage location
+		router.Put("/storage-locations/{id}", storageLocationController.Update)
+
+		// Delete storage location
+		router.Delete("/storage-locations/{id}", storageLocationController.Destroy)
+	})
+
+	// Category management routes (methodes/admin only)
+	categoryController := controllers.NewCategoryController()
+	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
+		// List categories with pagination, search and filtering
+		router.Get("/categories", categoryController.Index)
+
+		// Get categories tree structure
+		router.Get("/categories/tree", categoryController.GetTree)
+
+		// Get specific category
+		router.Get("/categories/{id}", categoryController.Show)
+
+		// Create new category
+		router.Post("/categories", categoryController.Store)
+
+		// Update existing category
+		router.Put("/categories/{id}", categoryController.Update)
+
+		// Delete category
+		router.Delete("/categories/{id}", categoryController.Destroy)
+	})
+
+	// Article/Product management routes (methodes/admin only)
+	articleController := controllers.NewArticleController()
+	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
+		// List articles with pagination, search and filtering
+		router.Get("/articles", articleController.Index)
+
+		// Get specific article with all relationships
+		router.Get("/articles/{id}", articleController.Show)
+
+		// Create new article (Step 1: Basic Info)
+		router.Post("/articles", articleController.Store)
+
+		// Update existing article
+		router.Put("/articles/{id}", articleController.Update)
+
+		// Delete article
+		router.Delete("/articles/{id}", articleController.Destroy)
+
+		// Step 2: Attributes definition
+		router.Post("/articles/{id}/attributes", articleController.CreateAttribute)
+		router.Get("/articles/{id}/attributes", articleController.GetAttributes)
+
+		// Step 3: Upload multiple images
+		router.Post("/articles/{id}/images", articleController.CreateImages)
+		router.Get("/articles/{id}/images", articleController.GetImages)
+
+		// Step 4: Add product variants and set attribute values
+		router.Post("/articles/{id}/variants", articleController.CreateVariant)
+		router.Get("/articles/{id}/variants", articleController.GetVariants)
+
+		// Note: Step 5 (Define storage location) is handled in the main article creation/update
+		// Note: Step 6 (Define recipe) will be implemented separately as recipe management
+	})
+
 	// Client management routes (commercial/admin only)
 	clientController := controllers.NewClientController()
 	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {

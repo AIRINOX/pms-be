@@ -1,12 +1,12 @@
 package controllers
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/goravel/framework/contracts/http"
+	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/facades"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
 	"pms/app/models"
 )
@@ -60,12 +60,13 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 	// Find user by username
 	var user models.User
 	if err := facades.Orm().Query().With("Role").Where("username", request.Username).FirstOrFail(&user); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(401).Json(http.Json{
 				"error":   "Invalid credentials",
 				"message": "Username or password is incorrect",
 			})
 		}
+		fmt.Println(err)
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Internal server error",

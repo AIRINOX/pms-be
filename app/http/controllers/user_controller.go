@@ -1,14 +1,13 @@
 package controllers
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/goravel/framework/contracts/http"
+	"github.com/goravel/framework/errors"
 	"github.com/goravel/framework/facades"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
 	"pms/app/models"
 )
@@ -179,8 +178,8 @@ func (r *UserController) Show(ctx http.Context) http.Response {
 	}
 
 	var user models.User
-	if err := facades.Orm().Query().With("Role").Where("id", id).First(&user); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := facades.Orm().Query().With("Role").Where("id", id).FirstOrFail(&user); err != nil {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
 				"message": "The requested user does not exist",
@@ -349,7 +348,7 @@ func (r *UserController) Update(ctx http.Context) http.Response {
 	// Find existing user
 	var user models.User
 	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&user); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
 				"message": "The requested user does not exist",
@@ -508,7 +507,7 @@ func (r *UserController) Destroy(ctx http.Context) http.Response {
 	// Find existing user
 	var user models.User
 	if err := facades.Orm().Query().With("Role").Where("id", id).FirstOrFail(&user); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
 				"message": "The requested user does not exist",
@@ -571,7 +570,7 @@ func (r *UserController) ToggleStatus(ctx http.Context) http.Response {
 	// Find existing user
 	var user models.User
 	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&user); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "User not found",
 				"message": "The requested user does not exist",

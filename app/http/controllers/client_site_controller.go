@@ -1,12 +1,12 @@
 package controllers
 
 import (
-	"errors"
 	"strconv"
+
+	"github.com/goravel/framework/errors"
 
 	"github.com/goravel/framework/contracts/http"
 	"github.com/goravel/framework/facades"
-	"gorm.io/gorm"
 
 	"pms/app/models"
 )
@@ -74,7 +74,7 @@ func (r *ClientSiteController) Index(ctx http.Context) http.Response {
 	// Verify client exists
 	var client models.Client
 	if err := facades.Orm().Query().Where("id", clientID).FirstOrFail(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The requested client does not exist",
@@ -143,7 +143,7 @@ func (r *ClientSiteController) Show(ctx http.Context) http.Response {
 
 	clientID := ctx.Request().Route("clientId")
 	siteID := ctx.Request().Route("siteId")
-	
+
 	if clientID == "" || siteID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -153,7 +153,7 @@ func (r *ClientSiteController) Show(ctx http.Context) http.Response {
 
 	var site models.ClientSite
 	if err := facades.Orm().Query().With("Client").Where("id", siteID).Where("client_id", clientID).First(&site); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client site not found",
 				"message": "The requested client site does not exist",
@@ -210,7 +210,7 @@ func (r *ClientSiteController) Store(ctx http.Context) http.Response {
 	// Verify client exists
 	var client models.Client
 	if err := facades.Orm().Query().Where("id", request.ClientID).FirstOrFail(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The specified client does not exist",
@@ -294,7 +294,7 @@ func (r *ClientSiteController) Update(ctx http.Context) http.Response {
 
 	clientID := ctx.Request().Route("clientId")
 	siteID := ctx.Request().Route("siteId")
-	
+
 	if clientID == "" || siteID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -315,7 +315,7 @@ func (r *ClientSiteController) Update(ctx http.Context) http.Response {
 	// Find existing client site
 	var site models.ClientSite
 	if err := facades.Orm().Query().Where("id", siteID).Where("client_id", clientID).FirstOrFail(&site); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client site not found",
 				"message": "The requested client site does not exist",
@@ -414,7 +414,7 @@ func (r *ClientSiteController) Destroy(ctx http.Context) http.Response {
 
 	clientID := ctx.Request().Route("clientId")
 	siteID := ctx.Request().Route("siteId")
-	
+
 	if clientID == "" || siteID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -425,7 +425,7 @@ func (r *ClientSiteController) Destroy(ctx http.Context) http.Response {
 	// Find existing client site
 	var site models.ClientSite
 	if err := facades.Orm().Query().Where("id", siteID).Where("client_id", clientID).FirstOrFail(&site); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client site not found",
 				"message": "The requested client site does not exist",

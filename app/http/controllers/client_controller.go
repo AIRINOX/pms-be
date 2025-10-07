@@ -1,12 +1,12 @@
 package controllers
 
 import (
-	"errors"
 	"strconv"
+
+	"github.com/goravel/framework/errors"
 
 	"github.com/goravel/framework/contracts/http"
 	"github.com/goravel/framework/facades"
-	"gorm.io/gorm"
 
 	"pms/app/models"
 )
@@ -141,7 +141,7 @@ func (r *ClientController) Show(ctx http.Context) http.Response {
 		})
 	}
 
-	id := ctx.Request().Route("id")
+	id := ctx.Request().Route("clientId")
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -151,7 +151,7 @@ func (r *ClientController) Show(ctx http.Context) http.Response {
 
 	var client models.Client
 	if err := facades.Orm().Query().With("ClientSites").Where("id", id).First(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The requested client does not exist",
@@ -267,7 +267,7 @@ func (r *ClientController) Update(ctx http.Context) http.Response {
 		})
 	}
 
-	id := ctx.Request().Route("id")
+	id := ctx.Request().Route("clientId")
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -288,7 +288,7 @@ func (r *ClientController) Update(ctx http.Context) http.Response {
 	// Find existing client
 	var client models.Client
 	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The requested client does not exist",
@@ -394,7 +394,7 @@ func (r *ClientController) Destroy(ctx http.Context) http.Response {
 		})
 	}
 
-	id := ctx.Request().Route("id")
+	id := ctx.Request().Route("clientId")
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -405,7 +405,7 @@ func (r *ClientController) Destroy(ctx http.Context) http.Response {
 	// Find existing client
 	var client models.Client
 	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The requested client does not exist",
@@ -454,7 +454,7 @@ func (r *ClientController) GetClientOrders(ctx http.Context) http.Response {
 		})
 	}
 
-	id := ctx.Request().Route("id")
+	id := ctx.Request().Route("clientId")
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
@@ -465,7 +465,7 @@ func (r *ClientController) GetClientOrders(ctx http.Context) http.Response {
 	// Verify client exists
 	var client models.Client
 	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&client); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Client not found",
 				"message": "The requested client does not exist",
