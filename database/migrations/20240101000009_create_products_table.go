@@ -5,16 +5,16 @@ import (
 	"github.com/goravel/framework/facades"
 )
 
-type M20240101000009CreateArticlesTable struct{}
+type M20240101000009CreateProductsTable struct{}
 
 // Signature The unique signature for the migration.
-func (r *M20240101000009CreateArticlesTable) Signature() string {
-	return "20240101000009_create_articles_table"
+func (r *M20240101000009CreateProductsTable) Signature() string {
+	return "20240101000009_create_products_table"
 }
 
 // Up Run the migrations.
-func (r *M20240101000009CreateArticlesTable) Up() error {
-	return facades.Schema().Create("articles", func(table schema.Blueprint) {
+func (r *M20240101000009CreateProductsTable) Up() error {
+	return facades.Schema().Create("products", func(table schema.Blueprint) {
 		table.ID("id")
 		table.String("title", 255)
 		table.Text("description").Nullable()
@@ -40,6 +40,6 @@ func (r *M20240101000009CreateArticlesTable) Up() error {
 }
 
 // Down Reverse the migrations.
-func (r *M20240101000009CreateArticlesTable) Down() error {
-	return facades.Schema().DropIfExists("articles")
+func (r *M20240101000009CreateProductsTable) Down() error {
+	return facades.Schema().DropIfExists("products")
 }

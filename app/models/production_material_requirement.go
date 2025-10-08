@@ -16,5 +16,5 @@ type ProductionMaterialRequirement struct {
 
 	// Relationships
 	OrderFabrication OrderFabrication `gorm:"foreignKey:OrderFabricationID"`
-	MaterialVariant  ArticleVariant   `gorm:"foreignKey:MaterialVariantID"`
+	MaterialVariant  ProductVariant   `gorm:"foreignKey:MaterialVariantID"`
 }

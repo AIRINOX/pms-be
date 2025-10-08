@@ -27,7 +27,7 @@ func (r *M20240101000023CreateStockRequestsTable) Up() error {
 		table.Text("notes").Nullable()
 
 		table.Foreign("order_fabrication_id").References("id").On("order_fabrications")
-		table.Foreign("material_variant_id").References("id").On("article_variants")
+		table.Foreign("material_variant_id").References("id").On("product_variants")
 		table.Foreign("requested_by").References("id").On("users")
 
 		table.Index("order_fabrication_id")

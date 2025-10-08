@@ -20,31 +20,31 @@ func (kernel Kernel) Migrations() []schema.Migration {
 		&migrations.M20240101000004CreateOperationsTable{},
 		&migrations.M20240101000005CreateClientsTable{},
 		&migrations.M20240101000006CreateStorageLocationsTable{},
-		
+
 		// Level 1 dependencies
-		&migrations.M20240101000007CreateUsersTable{}, // depends on roles
+		&migrations.M20240101000007CreateUsersTable{},       // depends on roles
 		&migrations.M20240101000008CreateClientSitesTable{}, // depends on clients
-		&migrations.M20240101000009CreateArticlesTable{}, // depends on categories, storage_locations
-		
+		&migrations.M20240101000009CreateProductsTable{},    // depends on categories, storage_locations
+
 		// Level 2 dependencies
-		&migrations.M20240101000010CreateArticleAttributesTable{}, // depends on articles
-		&migrations.M20240101000011CreateArticleAttributeValuesTable{}, // depends on article_attributes
-		&migrations.M20240101000012CreateArticleVariantsTable{}, // depends on articles
-		&migrations.M20240101000013CreateArticleImagesTable{}, // depends on articles
-		&migrations.M20240101000014CreateRecipeArticlesTable{}, // depends on articles
-		
+		&migrations.M20240101000010CreateProductAttributesTable{},      // depends on products
+		&migrations.M20240101000011CreateProductAttributeValuesTable{}, // depends on product_attributes
+		&migrations.M20240101000012CreateProductVariantsTable{},        // depends on products
+		&migrations.M20240101000013CreateProductImagesTable{},          // depends on products
+		&migrations.M20240101000014CreateRecipeProductsTable{},         // depends on products
+
 		// Level 3 dependencies
-		&migrations.M20240101000015CreateOrderFabricationsTable{}, // depends on articles, article_variants, clients, client_sites, users
-		&migrations.M20240101000016CreateStockMovementsTable{}, // depends on articles, article_variants, storage_locations, users
-		&migrations.M20240101000017CreateStockLevelsTable{}, // depends on articles, article_variants, storage_locations
-		&migrations.M20240101000018CreateRecipeArticleItemsTable{}, // depends on recipe_articles, articles
-		&migrations.M20240101000019CreateRecipeVariantsTable{}, // depends on articles, article_variants
-		&migrations.M20240101000020CreateRecipeVariantItemsTable{}, // depends on recipe_variants, article_variants
-		&migrations.M20240101000021CreateProductionOfHistoryTable{}, // depends on order_fabrications, operations, users
-		&migrations.M20240101000022CreateProductionMaterialRequirementsTable{}, // depends on order_fabrications, article_variants
-		&migrations.M20240101000023CreateStockRequestsTable{}, // depends on order_fabrications, article_variants, users
-		&migrations.M20240101000024CreateTechnicalDocumentsTable{}, // depends on articles, users
-		&migrations.M20240101000025CreateFicheConceptionsTable{}, // depends on articles, users
+		&migrations.M20240101000015CreateOrderFabricationsTable{},              // depends on products, product_variants, clients, client_sites, users
+		&migrations.M20240101000016CreateStockMovementsTable{},                 // depends on products, product_variants, storage_locations, users
+		&migrations.M20240101000017CreateStockLevelsTable{},                    // depends on products, product_variants, storage_locations
+		&migrations.M20240101000018CreateRecipeProductItemsTable{},             // depends on recipe_products, products
+		&migrations.M20240101000019CreateRecipeVariantsTable{},                 // depends on products, product_variants
+		&migrations.M20240101000020CreateRecipeVariantItemsTable{},             // depends on recipe_variants, product_variants
+		&migrations.M20240101000021CreateProductionOfHistoryTable{},            // depends on order_fabrications, operations, users
+		&migrations.M20240101000022CreateProductionMaterialRequirementsTable{}, // depends on order_fabrications, product_variants
+		&migrations.M20240101000023CreateStockRequestsTable{},                  // depends on order_fabrications, product_variants, users
+		&migrations.M20240101000024CreateTechnicalDocumentsTable{},             // depends on products, users
+		&migrations.M20240101000025CreateFicheConceptionsTable{},               // depends on products, users
 	}
 }
 

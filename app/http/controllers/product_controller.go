@@ -11,18 +11,18 @@ import (
 	"pms/app/models"
 )
 
-type ArticleController struct {
+type ProductController struct {
 	// Dependent services
 }
 
-func NewArticleController() *ArticleController {
-	return &ArticleController{
+func NewProductController() *ProductController {
+	return &ProductController{
 		// Inject services
 	}
 }
 
-// CreateArticleRequest represents the article creation request payload
-type CreateArticleRequest struct {
+// CreateProductRequest represents the product creation request payload
+type CreateProductRequest struct {
 	Title         string  `json:"title" form:"title" validate:"required|min_len:2|max_len:255"`
 	Description   string  `json:"description" form:"description"`
 	SKU           string  `json:"sku" form:"sku" validate:"max_len:100"`
@@ -35,8 +35,8 @@ type CreateArticleRequest struct {
 	ImageURL      string  `json:"image_url" form:"image_url" validate:"max_len:500"`
 }
 
-// UpdateArticleRequest represents the article update request payload
-type UpdateArticleRequest struct {
+// UpdateProductRequest represents the product update request payload
+type UpdateProductRequest struct {
 	Title         string  `json:"title" form:"title" validate:"min_len:2|max_len:255"`
 	Description   string  `json:"description" form:"description"`
 	SKU           string  `json:"sku" form:"sku" validate:"max_len:100"`
@@ -80,7 +80,7 @@ type CreateImageRequest struct {
 }
 
 // isMethodesOrAdmin checks if the authenticated user is methodes or admin
-func (r *ArticleController) isMethodesOrAdmin(ctx http.Context) bool {
+func (r *ProductController) isMethodesOrAdmin(ctx http.Context) bool {
 	var user models.User
 	err := facades.Auth(ctx).User(&user)
 	if err != nil {
@@ -95,8 +95,8 @@ func (r *ArticleController) isMethodesOrAdmin(ctx http.Context) bool {
 	return user.Role.Key == "admin" || user.Role.Key == "methodes"
 }
 
-// Index returns a paginated list of articles with search and filtering
-func (r *ArticleController) Index(ctx http.Context) http.Response {
+// Index returns a paginated list of products with search and filtering
+func (r *ProductController) Index(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -154,28 +154,28 @@ func (r *ArticleController) Index(ctx http.Context) http.Response {
 		query = query.OrderBy("title", "asc")
 	}
 
-	var articles []models.Article
+	var products []models.Product
 
 	// Get total count
-	total, err := query.Model(&models.Article{}).Count()
+	total, err := query.Model(&models.Product{}).Count()
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to count articles",
+			"message": "Failed to count products",
 		})
 	}
 
 	// Get paginated results
 	offset := (pageIndex - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Find(&articles); err != nil {
+	if err := query.Offset(offset).Limit(pageSize).Find(&products); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to retrieve articles",
+			"message": "Failed to retrieve products",
 		})
 	}
 
 	return ctx.Response().Status(200).Json(http.Json{
-		"articles": articles,
+		"products": products,
 		"pagination": http.Json{
 			"current_page": pageIndex,
 			"page_size":    pageSize,
@@ -185,8 +185,8 @@ func (r *ArticleController) Index(ctx http.Context) http.Response {
 	})
 }
 
-// Show returns a specific article by ID with all relationships
-func (r *ArticleController) Show(ctx http.Context) http.Response {
+// Show returns a specific product by ID with all relationships
+func (r *ProductController) Show(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -198,31 +198,31 @@ func (r *ArticleController) Show(ctx http.Context) http.Response {
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	var article models.Article
-	if err := facades.Orm().Query().With("Category", "Location", "Attributes.Values", "Variants", "Images").Where("id", id).First(&article); err != nil {
+	var product models.Product
+	if err := facades.Orm().Query().With("Category", "Location", "Attributes.Values", "Variants", "Images").Where("id", id).First(&product); err != nil {
 		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
-				"error":   "Article not found",
-				"message": "The requested article does not exist",
+				"error":   "Product not found",
+				"message": "The requested product does not exist",
 			})
 		}
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to retrieve article",
+			"message": "Failed to retrieve product",
 		})
 	}
 
 	return ctx.Response().Status(200).Json(http.Json{
-		"article": article,
+		"product": product,
 	})
 }
 
-// Store creates a new article (Step 1: Basic Info)
-func (r *ArticleController) Store(ctx http.Context) http.Response {
+// Store creates a new product (Step 1: Basic Info)
+func (r *ProductController) Store(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -230,7 +230,7 @@ func (r *ArticleController) Store(ctx http.Context) http.Response {
 		})
 	}
 
-	var request CreateArticleRequest
+	var request CreateProductRequest
 
 	// Validate request
 	if err := ctx.Request().Bind(&request); err != nil {
@@ -288,11 +288,11 @@ func (r *ArticleController) Store(ctx http.Context) http.Response {
 
 	// Check if SKU already exists (if provided)
 	if request.SKU != "" {
-		var existingArticle models.Article
-		if err := facades.Orm().Query().Where("sku", request.SKU).FirstOrFail(&existingArticle); err == nil {
+		var existingProduct models.Product
+		if err := facades.Orm().Query().Where("sku", request.SKU).FirstOrFail(&existingProduct); err == nil {
 			return ctx.Response().Status(409).Json(http.Json{
 				"error":   "SKU already exists",
-				"message": "An article with this SKU already exists",
+				"message": "An product with this SKU already exists",
 			})
 		}
 	}
@@ -319,8 +319,8 @@ func (r *ArticleController) Store(ctx http.Context) http.Response {
 		}
 	}
 
-	// Create new article
-	article := models.Article{
+	// Create new product
+	product := models.Product{
 		Title:         request.Title,
 		Description:   request.Description,
 		SKU:           request.SKU,
@@ -333,26 +333,26 @@ func (r *ArticleController) Store(ctx http.Context) http.Response {
 		ImageURL:      request.ImageURL,
 	}
 
-	if err := facades.Orm().Query().Create(&article); err != nil {
+	if err := facades.Orm().Query().Create(&product); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to create article",
+			"message": "Failed to create product",
 		})
 	}
 
 	// Load relationships for response
-	if err := facades.Orm().Query().With("Category", "Location").Where("id", article.ID).First(&article); err != nil {
-		// Article was created but failed to load relationships, still return success
+	if err := facades.Orm().Query().With("Category", "Location").Where("id", product.ID).First(&product); err != nil {
+		// Product was created but failed to load relationships, still return success
 	}
 
 	return ctx.Response().Status(201).Json(http.Json{
-		"message": "Article created successfully",
-		"article": article,
+		"message": "Product created successfully",
+		"product": product,
 	})
 }
 
-// Update modifies an existing article
-func (r *ArticleController) Update(ctx http.Context) http.Response {
+// Update modifies an existing product
+func (r *ProductController) Update(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -364,11 +364,11 @@ func (r *ArticleController) Update(ctx http.Context) http.Response {
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	var request UpdateArticleRequest
+	var request UpdateProductRequest
 
 	// Validate request
 	if err := ctx.Request().Bind(&request); err != nil {
@@ -378,18 +378,18 @@ func (r *ArticleController) Update(ctx http.Context) http.Response {
 		})
 	}
 
-	// Find existing article
-	var article models.Article
-	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&article); err != nil {
+	// Find existing product
+	var product models.Product
+	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&product); err != nil {
 		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
-				"error":   "Article not found",
-				"message": "The requested article does not exist",
+				"error":   "Product not found",
+				"message": "The requested product does not exist",
 			})
 		}
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to retrieve article",
+			"message": "Failed to retrieve product",
 		})
 	}
 
@@ -411,12 +411,12 @@ func (r *ArticleController) Update(ctx http.Context) http.Response {
 		validationData["sku"] = request.SKU
 		validationRules["sku"] = "max_len:100"
 
-		// Check if SKU already exists (excluding current article)
-		var existingArticle models.Article
-		if err := facades.Orm().Query().Where("sku", request.SKU).Where("id != ?", id).FirstOrFail(&existingArticle); err == nil {
+		// Check if SKU already exists (excluding current product)
+		var existingProduct models.Product
+		if err := facades.Orm().Query().Where("sku", request.SKU).Where("id != ?", id).FirstOrFail(&existingProduct); err == nil {
 			return ctx.Response().Status(409).Json(http.Json{
 				"error":   "SKU already exists",
-				"message": "An article with this SKU already exists",
+				"message": "An product with this SKU already exists",
 			})
 		}
 	}
@@ -476,59 +476,59 @@ func (r *ArticleController) Update(ctx http.Context) http.Response {
 		}
 	}
 
-	// Update article fields
+	// Update product fields
 	if request.Title != "" {
-		article.Title = request.Title
+		product.Title = request.Title
 	}
 	if request.Description != "" {
-		article.Description = request.Description
+		product.Description = request.Description
 	}
 	if request.SKU != "" {
-		article.SKU = request.SKU
+		product.SKU = request.SKU
 	}
 	if request.IsRawMaterial != nil {
-		article.IsRawMaterial = *request.IsRawMaterial
+		product.IsRawMaterial = *request.IsRawMaterial
 	}
 	if request.CategoryID != nil {
-		article.CategoryID = request.CategoryID
+		product.CategoryID = request.CategoryID
 	}
 	if request.LocationID != nil {
-		article.LocationID = request.LocationID
+		product.LocationID = request.LocationID
 	}
 	if request.PrixAchat != 0 {
-		article.PrixAchat = request.PrixAchat
+		product.PrixAchat = request.PrixAchat
 	}
 	if request.PrixVente != 0 {
-		article.PrixVente = request.PrixVente
+		product.PrixVente = request.PrixVente
 	}
 	if request.Unit != "" {
-		article.Unit = request.Unit
+		product.Unit = request.Unit
 	}
 	if request.ImageURL != "" {
-		article.ImageURL = request.ImageURL
+		product.ImageURL = request.ImageURL
 	}
 
 	// Save changes
-	if err := facades.Orm().Query().Save(&article); err != nil {
+	if err := facades.Orm().Query().Save(&product); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to update article",
+			"message": "Failed to update product",
 		})
 	}
 
 	// Load relationships for response
-	if err := facades.Orm().Query().With("Category", "Location").Where("id", article.ID).First(&article); err != nil {
-		// Article was updated but failed to load relationships, still return success
+	if err := facades.Orm().Query().With("Category", "Location").Where("id", product.ID).First(&product); err != nil {
+		// Product was updated but failed to load relationships, still return success
 	}
 
 	return ctx.Response().Status(200).Json(http.Json{
-		"message": "Article updated successfully",
-		"article": article,
+		"message": "Product updated successfully",
+		"product": product,
 	})
 }
 
-// Destroy deletes an article
-func (r *ArticleController) Destroy(ctx http.Context) http.Response {
+// Destroy deletes an product
+func (r *ProductController) Destroy(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -540,91 +540,91 @@ func (r *ArticleController) Destroy(ctx http.Context) http.Response {
 	if id == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	// Find existing article
-	var article models.Article
-	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&article); err != nil {
+	// Find existing product
+	var product models.Product
+	if err := facades.Orm().Query().Where("id", id).FirstOrFail(&product); err != nil {
 		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
-				"error":   "Article not found",
-				"message": "The requested article does not exist",
+				"error":   "Product not found",
+				"message": "The requested product does not exist",
 			})
 		}
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to retrieve article",
+			"message": "Failed to retrieve product",
 		})
 	}
 
-	// Check if article has any orders
-	orderCount, err := facades.Orm().Query().Model(&models.OrderFabrication{}).Where("article_id", id).Count()
+	// Check if product has any orders
+	orderCount, err := facades.Orm().Query().Model(&models.OrderFabrication{}).Where("product_id", id).Count()
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to check article orders",
+			"message": "Failed to check product orders",
 		})
 	}
 	if orderCount > 0 {
 		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Cannot delete article",
-			"message": "Article has existing fabrication orders and cannot be deleted",
+			"error":   "Cannot delete product",
+			"message": "Product has existing fabrication orders and cannot be deleted",
 		})
 	}
 
-	// Check if article has any stock levels
-	stockLevelCount, err := facades.Orm().Query().Model(&models.StockLevel{}).Where("article_id", id).Count()
+	// Check if product has any stock levels
+	stockLevelCount, err := facades.Orm().Query().Model(&models.StockLevel{}).Where("product_id", id).Count()
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to check article stock levels",
+			"message": "Failed to check product stock levels",
 		})
 	}
 	if stockLevelCount > 0 {
 		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Cannot delete article",
-			"message": "Article has existing stock levels and cannot be deleted",
+			"error":   "Cannot delete product",
+			"message": "Product has existing stock levels and cannot be deleted",
 		})
 	}
 
 	// Delete related data first
 	// Delete attributes and their values
-	var attributes []models.ArticleAttribute
-	if err := facades.Orm().Query().Where("article_id", id).Find(&attributes); err == nil {
+	var attributes []models.ProductAttribute
+	if err := facades.Orm().Query().Where("product_id", id).Find(&attributes); err == nil {
 		for _, attr := range attributes {
 			// Delete attribute values
-			facades.Orm().Query().Where("attribute_id", attr.ID).Delete(&models.ArticleAttributeValue{})
+			facades.Orm().Query().Where("attribute_id", attr.ID).Delete(&models.ProductAttributeValue{})
 		}
 		// Delete attributes
-		facades.Orm().Query().Where("article_id", id).Delete(&models.ArticleAttribute{})
+		facades.Orm().Query().Where("product_id", id).Delete(&models.ProductAttribute{})
 	}
 
 	// Delete variants
-	facades.Orm().Query().Where("article_id", id).Delete(&models.ArticleVariant{})
+	facades.Orm().Query().Where("product_id", id).Delete(&models.ProductVariant{})
 
 	// Delete images
-	facades.Orm().Query().Where("article_id", id).Delete(&models.ArticleImage{})
+	facades.Orm().Query().Where("product_id", id).Delete(&models.ProductImage{})
 
 	// Delete recipes
-	facades.Orm().Query().Where("article_id", id).Delete(&models.RecipeArticle{})
+	facades.Orm().Query().Where("product_id", id).Delete(&models.RecipeProduct{})
 
-	// Delete article
-	if _, err := facades.Orm().Query().Delete(&article); err != nil {
+	// Delete product
+	if _, err := facades.Orm().Query().Delete(&product); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to delete article",
+			"message": "Failed to delete product",
 		})
 	}
 
 	return ctx.Response().Status(200).Json(http.Json{
-		"message": "Article deleted successfully",
+		"message": "Product deleted successfully",
 	})
 }
 
-// CreateAttribute creates attributes for an article (Step 2: Attributes definition)
-func (r *ArticleController) CreateAttribute(ctx http.Context) http.Response {
+// CreateAttribute creates attributes for an product (Step 2: Attributes definition)
+func (r *ProductController) CreateAttribute(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -632,11 +632,11 @@ func (r *ArticleController) CreateAttribute(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
@@ -674,36 +674,36 @@ func (r *ArticleController) CreateAttribute(ctx http.Context) http.Response {
 		})
 	}
 
-	// Verify article exists
-	var article models.Article
-	if err := facades.Orm().Query().Where("id", articleID).FirstOrFail(&article); err != nil {
+	// Verify product exists
+	var product models.Product
+	if err := facades.Orm().Query().Where("id", productID).FirstOrFail(&product); err != nil {
 		return ctx.Response().Status(404).Json(http.Json{
-			"error":   "Article not found",
-			"message": "The specified article does not exist",
+			"error":   "Product not found",
+			"message": "The specified product does not exist",
 		})
 	}
 
-	// Check if attribute key already exists for this article
-	var existingAttribute models.ArticleAttribute
-	if err := facades.Orm().Query().Where("article_id", articleID).Where("key", request.Key).FirstOrFail(&existingAttribute); err == nil {
+	// Check if attribute key already exists for this product
+	var existingAttribute models.ProductAttribute
+	if err := facades.Orm().Query().Where("product_id", productID).Where("key", request.Key).FirstOrFail(&existingAttribute); err == nil {
 		return ctx.Response().Status(409).Json(http.Json{
 			"error":   "Attribute key already exists",
-			"message": "An attribute with this key already exists for this article",
+			"message": "An attribute with this key already exists for this product",
 		})
 	}
 
-	// Convert articleID to uint
-	articleIDUint, err := strconv.ParseUint(articleID, 10, 32)
+	// Convert productID to uint
+	productIDUint, err := strconv.ParseUint(productID, 10, 32)
 	if err != nil {
 		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Invalid article ID",
-			"message": "Article ID must be a valid number",
+			"error":   "Invalid product ID",
+			"message": "Product ID must be a valid number",
 		})
 	}
 
 	// Create new attribute
-	attribute := models.ArticleAttribute{
-		ArticleID:  uint(articleIDUint),
+	attribute := models.ProductAttribute{
+		ProductID:  uint(productIDUint),
 		Key:        request.Key,
 		Title:      request.Title,
 		OrderIndex: request.OrderIndex,
@@ -719,7 +719,7 @@ func (r *ArticleController) CreateAttribute(ctx http.Context) http.Response {
 	// Create attribute values if provided
 	if len(request.Values) > 0 {
 		for i, value := range request.Values {
-			attributeValue := models.ArticleAttributeValue{
+			attributeValue := models.ProductAttributeValue{
 				AttributeID: attribute.ID,
 				Value:       value,
 				OrderIndex:  i,
@@ -740,8 +740,8 @@ func (r *ArticleController) CreateAttribute(ctx http.Context) http.Response {
 	})
 }
 
-// CreateImages uploads multiple images for an article (Step 3: Upload multiple images)
-func (r *ArticleController) CreateImages(ctx http.Context) http.Response {
+// CreateImages uploads multiple images for an product (Step 3: Upload multiple images)
+func (r *ProductController) CreateImages(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -749,11 +749,11 @@ func (r *ArticleController) CreateImages(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
@@ -767,25 +767,25 @@ func (r *ArticleController) CreateImages(ctx http.Context) http.Response {
 		})
 	}
 
-	// Verify article exists
-	var article models.Article
-	if err := facades.Orm().Query().Where("id", articleID).FirstOrFail(&article); err != nil {
+	// Verify product exists
+	var product models.Product
+	if err := facades.Orm().Query().Where("id", productID).FirstOrFail(&product); err != nil {
 		return ctx.Response().Status(404).Json(http.Json{
-			"error":   "Article not found",
-			"message": "The specified article does not exist",
+			"error":   "Product not found",
+			"message": "The specified product does not exist",
 		})
 	}
 
-	// Convert articleID to uint
-	articleIDUint, err := strconv.ParseUint(articleID, 10, 32)
+	// Convert productID to uint
+	productIDUint, err := strconv.ParseUint(productID, 10, 32)
 	if err != nil {
 		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Invalid article ID",
-			"message": "Article ID must be a valid number",
+			"error":   "Invalid product ID",
+			"message": "Product ID must be a valid number",
 		})
 	}
 
-	var createdImages []models.ArticleImage
+	var createdImages []models.ProductImage
 
 	// Create images
 	for _, imageReq := range request {
@@ -817,11 +817,11 @@ func (r *ArticleController) CreateImages(ctx http.Context) http.Response {
 
 		// If this image is set as primary, unset other primary images
 		if imageReq.IsPrimary {
-			facades.Orm().Query().Model(&models.ArticleImage{}).Where("article_id", articleID).Update("is_primary", false)
+			facades.Orm().Query().Model(&models.ProductImage{}).Where("product_id", productID).Update("is_primary", false)
 		}
 
-		image := models.ArticleImage{
-			ArticleID:  uint(articleIDUint),
+		image := models.ProductImage{
+			ProductID:  uint(productIDUint),
 			FilePath:   imageReq.FilePath,
 			FileName:   imageReq.FileName,
 			ImageIndex: imageReq.ImageIndex,
@@ -844,8 +844,8 @@ func (r *ArticleController) CreateImages(ctx http.Context) http.Response {
 	})
 }
 
-// CreateVariant creates a variant for an article (Step 4: Add product variants)
-func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
+// CreateVariant creates a variant for an product (Step 4: Add product variants)
+func (r *ProductController) CreateVariant(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -853,11 +853,11 @@ func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
@@ -907,18 +907,18 @@ func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
 		})
 	}
 
-	// Verify article exists
-	var article models.Article
-	if err := facades.Orm().Query().Where("id", articleID).FirstOrFail(&article); err != nil {
+	// Verify product exists
+	var product models.Product
+	if err := facades.Orm().Query().Where("id", productID).FirstOrFail(&product); err != nil {
 		return ctx.Response().Status(404).Json(http.Json{
-			"error":   "Article not found",
-			"message": "The specified article does not exist",
+			"error":   "Product not found",
+			"message": "The specified product does not exist",
 		})
 	}
 
 	// Check if SKU already exists (if provided)
 	if request.SKU != "" {
-		var existingVariant models.ArticleVariant
+		var existingVariant models.ProductVariant
 		if err := facades.Orm().Query().Where("sku", request.SKU).FirstOrFail(&existingVariant); err == nil {
 			return ctx.Response().Status(409).Json(http.Json{
 				"error":   "SKU already exists",
@@ -927,12 +927,12 @@ func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
 		}
 	}
 
-	// Convert articleID to uint
-	articleIDUint, err := strconv.ParseUint(articleID, 10, 32)
+	// Convert productID to uint
+	productIDUint, err := strconv.ParseUint(productID, 10, 32)
 	if err != nil {
 		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Invalid article ID",
-			"message": "Article ID must be a valid number",
+			"error":   "Invalid product ID",
+			"message": "Product ID must be a valid number",
 		})
 	}
 
@@ -946,8 +946,8 @@ func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
 	}
 
 	// Create new variant
-	variant := models.ArticleVariant{
-		ArticleID:   uint(articleIDUint),
+	variant := models.ProductVariant{
+		ProductID:   uint(productIDUint),
 		Title:       request.Title,
 		Description: request.Description,
 		SKU:         request.SKU,
@@ -973,8 +973,8 @@ func (r *ArticleController) CreateVariant(ctx http.Context) http.Response {
 	})
 }
 
-// GetAttributes returns all attributes for an article
-func (r *ArticleController) GetAttributes(ctx http.Context) http.Response {
+// GetAttributes returns all attributes for an product
+func (r *ProductController) GetAttributes(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -982,16 +982,16 @@ func (r *ArticleController) GetAttributes(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	var attributes []models.ArticleAttribute
-	if err := facades.Orm().Query().With("Values").Where("article_id", articleID).OrderBy("order_index").Find(&attributes); err != nil {
+	var attributes []models.ProductAttribute
+	if err := facades.Orm().Query().With("Values").Where("product_id", productID).OrderBy("order_index").Find(&attributes); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve attributes",
@@ -1003,8 +1003,8 @@ func (r *ArticleController) GetAttributes(ctx http.Context) http.Response {
 	})
 }
 
-// GetVariants returns all variants for an article
-func (r *ArticleController) GetVariants(ctx http.Context) http.Response {
+// GetVariants returns all variants for an product
+func (r *ProductController) GetVariants(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -1012,16 +1012,16 @@ func (r *ArticleController) GetVariants(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	var variants []models.ArticleVariant
-	if err := facades.Orm().Query().Where("article_id", articleID).OrderBy("title").Find(&variants); err != nil {
+	var variants []models.ProductVariant
+	if err := facades.Orm().Query().Where("product_id", productID).OrderBy("title").Find(&variants); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve variants",
@@ -1033,8 +1033,8 @@ func (r *ArticleController) GetVariants(ctx http.Context) http.Response {
 	})
 }
 
-// GetImages returns all images for an article
-func (r *ArticleController) GetImages(ctx http.Context) http.Response {
+// GetImages returns all images for an product
+func (r *ProductController) GetImages(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
 			"error":   "Forbidden",
@@ -1042,16 +1042,16 @@ func (r *ArticleController) GetImages(ctx http.Context) http.Response {
 		})
 	}
 
-	articleID := ctx.Request().Route("id")
-	if articleID == "" {
+	productID := ctx.Request().Route("id")
+	if productID == "" {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Invalid request",
-			"message": "Article ID is required",
+			"message": "Product ID is required",
 		})
 	}
 
-	var images []models.ArticleImage
-	if err := facades.Orm().Query().Where("article_id", articleID).OrderBy("image_index").Find(&images); err != nil {
+	var images []models.ProductImage
+	if err := facades.Orm().Query().Where("product_id", productID).OrderBy("image_index").Find(&images); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve images",

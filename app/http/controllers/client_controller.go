@@ -482,7 +482,7 @@ func (r *ClientController) GetClientOrders(ctx http.Context) http.Response {
 	pageSize, _ := strconv.Atoi(ctx.Request().Query("pageSize", "10"))
 	status := ctx.Request().Query("status", "")
 
-	query := facades.Orm().Query().With("Article", "Variant", "ClientSite", "Creator").Where("client_id", id)
+	query := facades.Orm().Query().With("Product", "Variant", "ClientSite", "Creator").Where("client_id", id)
 
 	// Apply status filter if provided
 	if status != "" {

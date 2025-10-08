@@ -13,5 +13,5 @@ type RecipeVariantItem struct {
 
 	// Relationships
 	RecipeVariant   RecipeVariant  `gorm:"foreignKey:RecipeVariantID"`
-	MaterialVariant ArticleVariant `gorm:"foreignKey:MaterialVariantID"`
+	MaterialVariant ProductVariant `gorm:"foreignKey:MaterialVariantID"`
 }

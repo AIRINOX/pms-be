@@ -18,7 +18,7 @@ func (r *M20240101000025CreateFicheConceptionsTable) Up() error {
 		table.ID("id")
 		table.String("reference", 100)
 		table.Unique("reference")
-		table.UnsignedBigInteger("article_variant_id").Nullable()
+		table.UnsignedBigInteger("product_variant_id").Nullable()
 		table.String("title", 255)
 		table.Text("description").Nullable()
 		table.UnsignedBigInteger("requested_by")
@@ -28,11 +28,11 @@ func (r *M20240101000025CreateFicheConceptionsTable) Up() error {
 		table.Timestamp("validated_at").Nullable()
 		table.TimestampsTz()
 
-		table.Foreign("article_variant_id").References("id").On("articles")
+		table.Foreign("product_variant_id").References("id").On("products")
 		table.Foreign("requested_by").References("id").On("users")
 		table.Foreign("validated_by").References("id").On("users")
 
-		table.Index("article_variant_id")
+		table.Index("product_variant_id")
 		table.Index("requested_by")
 		table.Index("validated_by")
 		table.Index("status")

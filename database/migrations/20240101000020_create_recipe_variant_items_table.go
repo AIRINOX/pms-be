@@ -23,7 +23,7 @@ func (r *M20240101000020CreateRecipeVariantItemsTable) Up() error {
 		table.TimestampsTz()
 
 		table.Foreign("recipe_variant_id").References("id").On("recipe_variants")
-		table.Foreign("material_variant_id").References("id").On("article_variants")
+		table.Foreign("material_variant_id").References("id").On("product_variants")
 
 		table.Index("recipe_variant_id")
 		table.Index("material_variant_id")

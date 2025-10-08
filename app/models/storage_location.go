@@ -10,7 +10,7 @@ type StorageLocation struct {
 	Description string `gorm:"type:text"`
 
 	// Relationships
-	Articles      []Article      `gorm:"foreignKey:LocationID"`
-	StockLevels   []StockLevel   `gorm:"foreignKey:LocationID"`
+	Products       []Product       `gorm:"foreignKey:LocationID"`
+	StockLevels    []StockLevel    `gorm:"foreignKey:LocationID"`
 	StockMovements []StockMovement `gorm:"foreignKey:LocationID"`
 }

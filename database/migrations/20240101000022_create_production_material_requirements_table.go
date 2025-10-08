@@ -26,7 +26,7 @@ func (r *M20240101000022CreateProductionMaterialRequirementsTable) Up() error {
 		table.TimestampsTz()
 
 		table.Foreign("order_fabrication_id").References("id").On("order_fabrications")
-		table.Foreign("material_variant_id").References("id").On("article_variants")
+		table.Foreign("material_variant_id").References("id").On("product_variants")
 
 		table.Index("order_fabrication_id")
 		table.Index("material_variant_id")

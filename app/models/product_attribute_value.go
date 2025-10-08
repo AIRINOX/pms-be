@@ -4,7 +4,7 @@ import (
 	"github.com/goravel/framework/database/orm"
 )
 
-type ArticleAttributeValue struct {
+type ProductAttributeValue struct {
 	orm.Model
 	AttributeID uint   `gorm:"not null;index"`
 	Value       string `gorm:"size:255;not null"`
@@ -12,5 +12,5 @@ type ArticleAttributeValue struct {
 	IsActive    bool   `gorm:"not null;default:true;index"`
 
 	// Relationships
-	Attribute ArticleAttribute `gorm:"foreignKey:AttributeID"`
+	Attribute ProductAttribute `gorm:"foreignKey:AttributeID"`
 }

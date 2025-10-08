@@ -16,18 +16,18 @@ func (r *M20240101000019CreateRecipeVariantsTable) Signature() string {
 func (r *M20240101000019CreateRecipeVariantsTable) Up() error {
 	return facades.Schema().Create("recipe_variants", func(table schema.Blueprint) {
 		table.ID("id")
-		table.UnsignedBigInteger("article_id")
+		table.UnsignedBigInteger("product_id")
 		table.UnsignedBigInteger("variant_id")
 		table.Decimal("output_quantity")
 		table.Text("notes").Nullable()
 		table.TimestampsTz()
 
-		table.Foreign("article_id").References("id").On("articles")
-		table.Foreign("variant_id").References("id").On("article_variants")
+		table.Foreign("product_id").References("id").On("products")
+		table.Foreign("variant_id").References("id").On("product_variants")
 
-		table.Index("article_id")
+		table.Index("product_id")
 		table.Index("variant_id")
-		table.Unique("article_id", "variant_id")
+		table.Unique("product_id", "variant_id")
 	})
 }
 

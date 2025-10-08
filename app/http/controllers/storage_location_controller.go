@@ -359,18 +359,18 @@ func (r *StorageLocationController) Destroy(ctx http.Context) http.Response {
 		})
 	}
 
-	// Check if storage location has any articles
-	articleCount, err := facades.Orm().Query().Model(&models.Article{}).Where("location_id", id).Count()
+	// Check if storage location has any products
+	productCount, err := facades.Orm().Query().Model(&models.Product{}).Where("location_id", id).Count()
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to check storage location usage",
 		})
 	}
-	if articleCount > 0 {
+	if productCount > 0 {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Cannot delete storage location",
-			"message": "Storage location has existing articles and cannot be deleted",
+			"message": "Storage location has existing products and cannot be deleted",
 		})
 	}
 

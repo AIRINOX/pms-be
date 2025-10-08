@@ -4,12 +4,12 @@ import (
 	"github.com/goravel/framework/database/orm"
 )
 
-type RecipeArticle struct {
+type RecipeProduct struct {
 	orm.Model
 	Title       string `gorm:"size:255;not null;index"`
 	Description string `gorm:"type:text"`
-	ArticleID   uint   `gorm:"not null;index"`
+	ProductID   uint   `gorm:"not null;index"`
 
 	// Relationships
-	Article Article `gorm:"foreignKey:ArticleID"`
+	Product Product `gorm:"foreignKey:ProductID"`
 }

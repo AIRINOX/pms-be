@@ -13,5 +13,5 @@ type Category struct {
 	// Relationships
 	Parent   *Category  `gorm:"foreignKey:ParentID"`
 	Children []Category `gorm:"foreignKey:ParentID"`
-	Articles []Article  `gorm:"foreignKey:CategoryID"`
+	Products []Product  `gorm:"foreignKey:CategoryID"`
 }

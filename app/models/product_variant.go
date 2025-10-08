@@ -4,9 +4,9 @@ import (
 	"github.com/goravel/framework/database/orm"
 )
 
-type ArticleVariant struct {
+type ProductVariant struct {
 	orm.Model
-	ArticleID   uint    `gorm:"not null;index"`
+	ProductID   uint    `gorm:"not null;index"`
 	Title       string  `gorm:"size:255;not null"`
 	Description string  `gorm:"type:text"`
 	SKU         string  `gorm:"size:100;uniqueIndex"`
@@ -19,8 +19,8 @@ type ArticleVariant struct {
 	IsActive    bool    `gorm:"not null;default:true;index"`
 
 	// Relationships
-	Article           Article           `gorm:"foreignKey:ArticleID"`
+	Product           Product            `gorm:"foreignKey:ProductID"`
 	OrderFabrications []OrderFabrication `gorm:"foreignKey:VariantID"`
-	StockLevels       []StockLevel      `gorm:"foreignKey:VariantID"`
-	StockMovements    []StockMovement   `gorm:"foreignKey:VariantID"`
+	StockLevels       []StockLevel       `gorm:"foreignKey:VariantID"`
+	StockMovements    []StockMovement    `gorm:"foreignKey:VariantID"`
 }

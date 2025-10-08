@@ -178,7 +178,7 @@ func (r *CategoryController) Show(ctx http.Context) http.Response {
 	}
 
 	var category models.Category
-	if err := facades.Orm().Query().With("Parent", "Children").Where("id", id).First(&category); err != nil {
+	if err := facades.Orm().Query().With("Parent").With("Children").Where("id", id).FirstOrFail(&category); err != nil {
 		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Category not found",
@@ -484,18 +484,18 @@ func (r *CategoryController) Destroy(ctx http.Context) http.Response {
 		})
 	}
 
-	// Check if category has any articles
-	articleCount, err := facades.Orm().Query().Model(&models.Article{}).Where("category_id", id).Count()
+	// Check if category has any products
+	productCount, err := facades.Orm().Query().Model(&models.Product{}).Where("category_id", id).Count()
 	if err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
-			"message": "Failed to check category articles",
+			"message": "Failed to check category products",
 		})
 	}
-	if articleCount > 0 {
+	if productCount > 0 {
 		return ctx.Response().Status(400).Json(http.Json{
 			"error":   "Cannot delete category",
-			"message": "Category has existing articles and cannot be deleted",
+			"message": "Category has existing products and cannot be deleted",
 		})
 	}
 

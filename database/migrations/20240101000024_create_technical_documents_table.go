@@ -16,16 +16,16 @@ func (r *M20240101000024CreateTechnicalDocumentsTable) Signature() string {
 func (r *M20240101000024CreateTechnicalDocumentsTable) Up() error {
 	return facades.Schema().Create("technical_documents", func(table schema.Blueprint) {
 		table.ID("id")
-		table.UnsignedBigInteger("article_variant_id").Nullable()
+		table.UnsignedBigInteger("product_variant_id").Nullable()
 		table.Enum("doc_type", []any{"drawing", "spec_sheet", "quality_doc", "safety_doc"}).Nullable()
 		table.UnsignedBigInteger("uploaded_by").Nullable()
 		table.String("file_path", 500).Nullable()
 		table.TimestampsTz()
 
-		table.Foreign("article_variant_id").References("id").On("articles")
+		table.Foreign("product_variant_id").References("id").On("products")
 		table.Foreign("uploaded_by").References("id").On("users")
 
-		table.Index("article_variant_id")
+		table.Index("product_variant_id")
 		table.Index("uploaded_by")
 		table.Index("doc_type")
 	})

@@ -87,37 +87,37 @@ func Api() {
 		router.Delete("/categories/{id}", categoryController.Destroy)
 	})
 
-	// Article/Product management routes (methodes/admin only)
-	articleController := controllers.NewArticleController()
+	// Product/Product management routes (methodes/admin only)
+	productController := controllers.NewProductController()
 	facades.Route().Middleware(middleware.Auth()).Group(func(router route.Router) {
-		// List articles with pagination, search and filtering
-		router.Get("/articles", articleController.Index)
+		// List products with pagination, search and filtering
+		router.Get("/products", productController.Index)
 
-		// Get specific article with all relationships
-		router.Get("/articles/{id}", articleController.Show)
+		// Get specific product with all relationships
+		router.Get("/products/{id}", productController.Show)
 
-		// Create new article (Step 1: Basic Info)
-		router.Post("/articles", articleController.Store)
+		// Create new product (Step 1: Basic Info)
+		router.Post("/products", productController.Store)
 
-		// Update existing article
-		router.Put("/articles/{id}", articleController.Update)
+		// Update existing product
+		router.Put("/products/{id}", productController.Update)
 
-		// Delete article
-		router.Delete("/articles/{id}", articleController.Destroy)
+		// Delete product
+		router.Delete("/products/{id}", productController.Destroy)
 
 		// Step 2: Attributes definition
-		router.Post("/articles/{id}/attributes", articleController.CreateAttribute)
-		router.Get("/articles/{id}/attributes", articleController.GetAttributes)
+		router.Post("/products/{id}/attributes", productController.CreateAttribute)
+		router.Get("/products/{id}/attributes", productController.GetAttributes)
 
 		// Step 3: Upload multiple images
-		router.Post("/articles/{id}/images", articleController.CreateImages)
-		router.Get("/articles/{id}/images", articleController.GetImages)
+		router.Post("/products/{id}/images", productController.CreateImages)
+		router.Get("/products/{id}/images", productController.GetImages)
 
 		// Step 4: Add product variants and set attribute values
-		router.Post("/articles/{id}/variants", articleController.CreateVariant)
-		router.Get("/articles/{id}/variants", articleController.GetVariants)
+		router.Post("/products/{id}/variants", productController.CreateVariant)
+		router.Get("/products/{id}/variants", productController.GetVariants)
 
-		// Note: Step 5 (Define storage location) is handled in the main article creation/update
+		// Note: Step 5 (Define storage location) is handled in the main product creation/update
 		// Note: Step 6 (Define recipe) will be implemented separately as recipe management
 	})
 

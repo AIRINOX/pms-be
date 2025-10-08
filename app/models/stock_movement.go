@@ -6,7 +6,7 @@ import (
 
 type StockMovement struct {
 	orm.Model
-	ArticleID     uint    `gorm:"not null;index"`
+	ProductID     uint    `gorm:"not null;index"`
 	VariantID     *uint   `gorm:"index"`
 	LocationID    uint    `gorm:"not null;index"`
 	MovementType  string  `gorm:"size:20;not null;index"` // in, out, adjustment
@@ -18,8 +18,8 @@ type StockMovement struct {
 	CreatedBy     uint    `gorm:"not null;index"`
 
 	// Relationships
-	Article  Article         `gorm:"foreignKey:ArticleID"`
-	Variant  *ArticleVariant `gorm:"foreignKey:VariantID"`
+	Product  Product         `gorm:"foreignKey:ProductID"`
+	Variant  *ProductVariant `gorm:"foreignKey:VariantID"`
 	Location StorageLocation `gorm:"foreignKey:LocationID"`
 	Creator  User            `gorm:"foreignKey:CreatedBy"`
 }
