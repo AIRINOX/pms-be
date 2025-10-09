@@ -20,7 +20,7 @@ func (r *M20240101000011CreateProductAttributeValuesTable) Up() error {
 		table.String("value", 255)
 		table.Integer("order_index").Default(0)
 		table.Boolean("is_active").Default(true)
-		table.Timestamp("created_at").UseCurrent()
+		table.TimestampsTz()
 
 		table.Foreign("attribute_id").References("id").On("product_attributes")
 		table.Index("attribute_id")

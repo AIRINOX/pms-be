@@ -16,6 +16,7 @@ func Api() {
 	// Protected authentication routes
 	facades.Route().Middleware(middleware.Auth()).Post("/auth/logout", authController.Logout)
 	facades.Route().Middleware(middleware.Auth()).Get("/auth/me", authController.Me)
+	facades.Route().Middleware(middleware.Auth()).Post("/auth/refresh", authController.RefreshToken)
 
 	// User management routes (admin only - protected by auth middleware and admin check in controller)
 	userController := controllers.NewUserController()
@@ -161,4 +162,9 @@ func Api() {
 		// Delete client site
 		router.Delete("/clients/{clientId}/sites/{siteId}", clientSiteController.Destroy)
 	})
+
+	// Add this to the Api() function
+	// File Upload routes
+	fileUploadController := controllers.NewFileUploadController()
+	facades.Route().Middleware(middleware.Auth()).Post("/upload", fileUploadController.UploadToS3)
 }

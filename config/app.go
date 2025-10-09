@@ -26,6 +26,7 @@ import (
 	"github.com/goravel/gin"
 	"github.com/goravel/mysql"
 	"github.com/goravel/redis"
+	"github.com/goravel/s3"
 
 	"pms/app/providers"
 )
@@ -123,6 +124,7 @@ func init() {
 			&providers.ValidationServiceProvider{},
 			&providers.DatabaseServiceProvider{},
 			&gin.ServiceProvider{},
+			&s3.ServiceProvider{},
 		},
 	})
 }

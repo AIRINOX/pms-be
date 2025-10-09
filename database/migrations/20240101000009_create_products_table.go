@@ -26,7 +26,7 @@ func (r *M20240101000009CreateProductsTable) Up() error {
 		table.Decimal("prix_achat").Nullable()
 		table.Decimal("prix_vente").Nullable()
 		table.String("unit", 50).Nullable()
-		table.String("image_url", 500).Nullable()
+		table.String("image_url", 255).Nullable()
 		table.TimestampsTz()
 
 		table.Foreign("category_id").References("id").On("categories")

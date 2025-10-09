@@ -1,8 +1,13 @@
 package controllers
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/goravel/framework/contracts/http"
 	"github.com/goravel/framework/errors"
@@ -47,6 +52,46 @@ type UpdateProductRequest struct {
 	PrixVente     float64 `json:"prix_vente" form:"prix_vente"`
 	Unit          string  `json:"unit" form:"unit" validate:"max_len:50"`
 	ImageURL      string  `json:"image_url" form:"image_url" validate:"max_len:500"`
+}
+
+// ProductAttributeOption represents an attribute and its values
+type ProductAttributeOption struct {
+	AttributeID     uint     `json:"attribute_id"`
+	AttributeName   string   `json:"attribute_name"`
+	AttributeValues []string `json:"attribute_values"`
+}
+
+// ProductVariantOption represents a variant option
+type ProductVariantOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+// ProductVariantRequest represents a product variant in the request
+type ProductVariantRequest struct {
+	SKU      string                 `json:"sku"`
+	Price    float64                `json:"price"`
+	Quantity int                    `json:"quantity"`
+	Options  []ProductVariantOption `json:"options"`
+}
+
+// ProductImageRequest represents a product image in the request
+type ProductImageRequest struct {
+	URL       string `json:"url"`
+	IsPrimary bool   `json:"is_primary"`
+}
+
+// CompleteProductUpdateRequest represents the full product update request payload
+type CompleteProductUpdateRequest struct {
+	Title         string                   `json:"title" validate:"required|min_len:2|max_len:255"`
+	CategoryID    uint                     `json:"category_id"`
+	LocationID    uint                     `json:"location_id"`
+	PrixAchat     float64                  `json:"prix_achat"`
+	PrixVente     float64                  `json:"prix_vente"`
+	IsRawMaterial bool                     `json:"is_raw_material"`
+	Attributes    []ProductAttributeOption `json:"attributes"`
+	Variants      []ProductVariantRequest  `json:"variants"`
+	Images        []ProductImageRequest    `json:"images"`
 }
 
 // CreateAttributeRequest represents the attribute creation request
@@ -118,7 +163,7 @@ func (r *ProductController) Index(ctx http.Context) http.Response {
 	filterLocation := ctx.Request().Query("filterData[location_id]", "")
 	filterIsRawMaterial := ctx.Request().Query("filterData[is_raw_material]", "")
 
-	query := facades.Orm().Query().With("Category", "Location")
+	query := facades.Orm().Query().With("Category").With("Location")
 
 	// Apply search filter
 	if searchQuery != "" {
@@ -203,7 +248,7 @@ func (r *ProductController) Show(ctx http.Context) http.Response {
 	}
 
 	var product models.Product
-	if err := facades.Orm().Query().With("Category", "Location", "Attributes.Values", "Variants", "Images").Where("id", id).First(&product); err != nil {
+	if err := facades.Orm().Query().With("Category").With("Location").With("Attributes.Values").With("Variants").With("Images").Where("id", id).First(&product); err != nil {
 		if errors.Is(err, errors.OrmRecordNotFound) {
 			return ctx.Response().Status(404).Json(http.Json{
 				"error":   "Product not found",
@@ -341,7 +386,7 @@ func (r *ProductController) Store(ctx http.Context) http.Response {
 	}
 
 	// Load relationships for response
-	if err := facades.Orm().Query().With("Category", "Location").Where("id", product.ID).First(&product); err != nil {
+	if err := facades.Orm().Query().With("Category").With("Location").Where("id", product.ID).First(&product); err != nil {
 		// Product was created but failed to load relationships, still return success
 	}
 
@@ -351,7 +396,7 @@ func (r *ProductController) Store(ctx http.Context) http.Response {
 	})
 }
 
-// Update modifies an existing product
+// Update modifies an existing product with all its attributes, variants and images
 func (r *ProductController) Update(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
 		return ctx.Response().Status(403).Json(http.Json{
@@ -368,7 +413,7 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 		})
 	}
 
-	var request UpdateProductRequest
+	var request CompleteProductUpdateRequest
 
 	// Validate request
 	if err := ctx.Request().Bind(&request); err != nil {
@@ -393,137 +438,223 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 		})
 	}
 
-	// Prepare validation rules and data
-	validationData := make(map[string]any)
-	validationRules := make(map[string]string)
-
-	if request.Title != "" {
-		validationData["title"] = request.Title
-		validationRules["title"] = "min_len:2|max_len:255"
+	// Verify category exists
+	var category models.Category
+	if err := facades.Orm().Query().Where("id", request.CategoryID).FirstOrFail(&category); err != nil {
+		return ctx.Response().Status(400).Json(http.Json{
+			"error":   "Invalid category",
+			"message": "The specified category does not exist",
+		})
 	}
 
-	if request.Description != "" {
-		validationData["description"] = request.Description
-		validationRules["description"] = "max_len:1000"
+	// Verify storage location exists
+	var location models.StorageLocation
+	if err := facades.Orm().Query().Where("id", request.LocationID).FirstOrFail(&location); err != nil {
+		return ctx.Response().Status(400).Json(http.Json{
+			"error":   "Invalid storage location",
+			"message": "The specified storage location does not exist",
+		})
 	}
 
-	if request.SKU != "" {
-		validationData["sku"] = request.SKU
-		validationRules["sku"] = "max_len:100"
-
-		// Check if SKU already exists (excluding current product)
-		var existingProduct models.Product
-		if err := facades.Orm().Query().Where("sku", request.SKU).Where("id != ?", id).FirstOrFail(&existingProduct); err == nil {
-			return ctx.Response().Status(409).Json(http.Json{
-				"error":   "SKU already exists",
-				"message": "An product with this SKU already exists",
-			})
-		}
+	// Start a transaction
+	tx, err := facades.Orm().Query().Begin()
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to start transaction",
+		})
 	}
 
-	if request.Unit != "" {
-		validationData["unit"] = request.Unit
-		validationRules["unit"] = "max_len:50"
-	}
+	// Update product basic info
+	product.Title = request.Title
+	product.CategoryID = &request.CategoryID
+	product.LocationID = &request.LocationID
+	product.PrixAchat = request.PrixAchat
+	product.PrixVente = request.PrixVente
+	product.IsRawMaterial = request.IsRawMaterial
 
-	if request.ImageURL != "" {
-		validationData["image_url"] = request.ImageURL
-		validationRules["image_url"] = "max_len:500"
-	}
-
-	if request.CategoryID != nil {
-		validationData["category_id"] = *request.CategoryID
-		validationRules["category_id"] = "numeric"
-
-		// Verify category exists
-		var category models.Category
-		if err := facades.Orm().Query().Where("id", *request.CategoryID).FirstOrFail(&category); err != nil {
-			return ctx.Response().Status(400).Json(http.Json{
-				"error":   "Invalid category",
-				"message": "The specified category does not exist",
-			})
-		}
-	}
-
-	if request.LocationID != nil {
-		validationData["location_id"] = *request.LocationID
-		validationRules["location_id"] = "numeric"
-
-		// Verify storage location exists
-		var location models.StorageLocation
-		if err := facades.Orm().Query().Where("id", *request.LocationID).FirstOrFail(&location); err != nil {
-			return ctx.Response().Status(400).Json(http.Json{
-				"error":   "Invalid storage location",
-				"message": "The specified storage location does not exist",
-			})
-		}
-	}
-
-	// Validate if there's data to validate
-	if len(validationData) > 0 {
-		validator, err := facades.Validation().Make(validationData, validationRules)
-		if err != nil {
-			return ctx.Response().Status(500).Json(http.Json{
-				"error": "Validation error",
-			})
-		}
-
-		if validator.Fails() {
-			return ctx.Response().Status(422).Json(http.Json{
-				"error":  "Validation failed",
-				"errors": validator.Errors().All(),
-			})
-		}
-	}
-
-	// Update product fields
-	if request.Title != "" {
-		product.Title = request.Title
-	}
-	if request.Description != "" {
-		product.Description = request.Description
-	}
-	if request.SKU != "" {
-		product.SKU = request.SKU
-	}
-	if request.IsRawMaterial != nil {
-		product.IsRawMaterial = *request.IsRawMaterial
-	}
-	if request.CategoryID != nil {
-		product.CategoryID = request.CategoryID
-	}
-	if request.LocationID != nil {
-		product.LocationID = request.LocationID
-	}
-	if request.PrixAchat != 0 {
-		product.PrixAchat = request.PrixAchat
-	}
-	if request.PrixVente != 0 {
-		product.PrixVente = request.PrixVente
-	}
-	if request.Unit != "" {
-		product.Unit = request.Unit
-	}
-	if request.ImageURL != "" {
-		product.ImageURL = request.ImageURL
-	}
-
-	// Save changes
-	if err := facades.Orm().Query().Save(&product); err != nil {
+	if err := tx.Save(&product); err != nil {
+		tx.Rollback()
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to update product",
 		})
 	}
 
-	// Load relationships for response
-	if err := facades.Orm().Query().With("Category", "Location").Where("id", product.ID).First(&product); err != nil {
-		// Product was updated but failed to load relationships, still return success
+	// Delete existing attributes and their values
+	var existingAttributes []models.ProductAttribute
+	if err := tx.Where("product_id", id).Find(&existingAttributes); err == nil {
+		for _, attr := range existingAttributes {
+			// Delete attribute values
+			if _, err := tx.Where("attribute_id", attr.ID).Delete(&models.ProductAttributeValue{}); err != nil {
+				tx.Rollback()
+				return ctx.Response().Status(500).Json(http.Json{
+					"error":   "Database error",
+					"message": "Failed to delete attribute values",
+				})
+			}
+		}
+		// Delete attributes
+		if _, err := tx.Where("product_id", id).Delete(&models.ProductAttribute{}); err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to delete attributes",
+			})
+		}
+	}
+
+	// Create new attributes and their values
+	for i, attr := range request.Attributes {
+		// Create attribute
+		attribute := models.ProductAttribute{
+			ProductID:  product.ID,
+			Key:        attr.AttributeName,
+			Title:      attr.AttributeName,
+			OrderIndex: i,
+		}
+
+		if err := tx.Create(&attribute); err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to create attribute",
+			})
+		}
+
+		// Create attribute values
+		for j, value := range attr.AttributeValues {
+			if value == "" {
+				continue
+			}
+
+			attributeValue := models.ProductAttributeValue{
+				AttributeID: attribute.ID,
+				Value:       value,
+				OrderIndex:  j,
+				IsActive:    true,
+			}
+
+			if err := tx.Create(&attributeValue); err != nil {
+				tx.Rollback()
+				return ctx.Response().Status(500).Json(http.Json{
+					"error":   "Database error",
+					"message": "Failed to create attribute value",
+				})
+			}
+		}
+	}
+
+	// Delete existing variants
+	if _, err := tx.Where("product_id", id).Delete(&models.ProductVariant{}); err != nil {
+		tx.Rollback()
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to delete variants",
+		})
+	}
+
+	// Create new variants
+	for _, variant := range request.Variants {
+		// Convert options to JSON
+		optionsMap := make(map[string]string)
+		for _, option := range variant.Options {
+			optionsMap[option.Name] = option.Value
+		}
+
+		optionsJSON, err := json.Marshal(optionsMap)
+		if err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "JSON error",
+				"message": "Failed to encode variant options",
+			})
+		}
+
+		// Create variant
+		newVariant := models.ProductVariant{
+			ProductID:  product.ID,
+			Title:      product.Title,
+			SKU:        variant.SKU,
+			Attributes: string(optionsJSON),
+			PrixVente:  variant.Price,
+			IsActive:   true,
+		}
+
+		if err := tx.Create(&newVariant); err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to create variant",
+			})
+		}
+	}
+
+	// Delete existing images
+	if _, err := tx.Where("product_id", id).Delete(&models.ProductImage{}); err != nil {
+		tx.Rollback()
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to delete images",
+		})
+	}
+
+	// Create new images
+	for i, image := range request.Images {
+		// Skip empty images
+		if image.URL == "" || image.URL == "data:image/jpeg;base64," {
+			continue
+		}
+		// i want save url as file theen will put the url of file in file path
+		// i will use file name to save file in storage
+		fileName := "image_" + strconv.Itoa(i+1) + ".jpg"
+		filePath := "storage/products/" + fileName
+		// i will save file in storage
+		if err := r.saveBase64Image(image.URL, filePath); err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "File error",
+				"message": "Failed to save image",
+			})
+		}
+
+		newImage := models.ProductImage{
+			ProductID:  product.ID,
+			FilePath:   filePath,
+			FileName:   fileName,
+			ImageIndex: i,
+			IsPrimary:  image.IsPrimary,
+		}
+
+		if err := tx.Create(&newImage); err != nil {
+			tx.Rollback()
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to create image",
+			})
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to commit transaction",
+		})
+	}
+
+	// Load the updated product with all relationships for response
+	var updatedProduct models.Product
+	if err := facades.Orm().Query().With("Category").With("Location").With("Attributes.Values").With("Variants").With("Images").Where("id", id).First(&updatedProduct); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to retrieve updated product",
+		})
 	}
 
 	return ctx.Response().Status(200).Json(http.Json{
 		"message": "Product updated successfully",
-		"product": product,
+		"product": updatedProduct,
 	})
 }
 
@@ -738,6 +869,30 @@ func (r *ProductController) CreateAttribute(ctx http.Context) http.Response {
 		"message":   "Attribute created successfully",
 		"attribute": attribute,
 	})
+}
+
+// saveBase64Image decodes a base64 image string and saves it to the specified file path
+func (r *ProductController) saveBase64Image(base64String string, filePath string) error {
+	// Extract the base64 data from the data URL
+	parts := strings.Split(base64String, ",")
+	if len(parts) != 2 {
+		return errors.New("invalid base64 image format")
+	}
+
+	// Decode the base64 string
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return err
+	}
+
+	// Ensure the directory exists
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	// Write the file
+	return ioutil.WriteFile(filePath, data, 0644)
 }
 
 // CreateImages uploads multiple images for an product (Step 3: Upload multiple images)

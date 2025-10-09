@@ -26,7 +26,7 @@ func (r *M20240101000016CreateStockMovementsTable) Up() error {
 		table.UnsignedBigInteger("reference_id").Nullable()
 		table.Text("notes").Nullable()
 		table.UnsignedBigInteger("created_by")
-		table.Timestamp("created_at").UseCurrent()
+		table.TimestampsTz()
 
 		table.Foreign("product_id").References("id").On("products")
 		table.Foreign("variant_id").References("id").On("product_variants")

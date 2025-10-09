@@ -17,11 +17,11 @@ func (r *M20240101000013CreateProductImagesTable) Up() error {
 	return facades.Schema().Create("product_images", func(table schema.Blueprint) {
 		table.ID("id")
 		table.UnsignedBigInteger("product_id")
-		table.String("file_path", 500)
+		table.String("file_url", 255)
 		table.String("file_name", 255)
 		table.Integer("image_index")
 		table.Boolean("is_primary").Default(false)
-		table.Timestamp("created_at").UseCurrent()
+		table.TimestampsTz()
 
 		table.Foreign("product_id").References("id").On("products")
 		table.Index("product_id")

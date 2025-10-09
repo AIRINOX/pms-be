@@ -116,7 +116,7 @@ func (r *AuthController) Login(ctx http.Context) http.Response {
 
 // Logout handles user logout
 func (r *AuthController) Logout(ctx http.Context) http.Response {
-	if err := facades.Auth().Logout(); err != nil {
+	if err := facades.Auth(ctx).Logout(); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Failed to logout",
 			"message": "Internal server error",
@@ -130,8 +130,9 @@ func (r *AuthController) Logout(ctx http.Context) http.Response {
 
 // Me returns the authenticated user's information
 func (r *AuthController) Me(ctx http.Context) http.Response {
-	user := facades.Auth().User(ctx)
-	if user == nil {
+	var user models.User
+	err := facades.Auth(ctx).User(&user)
+	if err != nil {
 		return ctx.Response().Status(401).Json(http.Json{
 			"error":   "Unauthorized",
 			"message": "User not authenticated",
@@ -145,7 +146,7 @@ func (r *AuthController) Me(ctx http.Context) http.Response {
 
 // RefreshToken refreshes the JWT token
 func (r *AuthController) RefreshToken(ctx http.Context) http.Response {
-	token, err := facades.Auth().Refresh()
+	token, err := facades.Auth(ctx).Refresh()
 	if err != nil {
 		return ctx.Response().Status(401).Json(http.Json{
 			"error":   "Failed to refresh token",

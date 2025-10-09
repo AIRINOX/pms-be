@@ -7,6 +7,8 @@ import (
 )
 
 func Web() {
+	facades.Route().Static("/storage", "./storage")
+
 	facades.Route().Get("/", func(ctx http.Context) http.Response {
 		return ctx.Response().View().Make("welcome.tmpl", map[string]any{
 			"version": support.Version,
