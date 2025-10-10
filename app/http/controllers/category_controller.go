@@ -511,3 +511,39 @@ func (r *CategoryController) Destroy(ctx http.Context) http.Response {
 		"message": "Category deleted successfully",
 	})
 }
+
+func (r *CategoryController) Select(ctx http.Context) http.Response {
+	if !r.isMethodesOrAdmin(ctx) {
+		return ctx.Response().Status(403).Json(http.Json{
+			"error":   "Forbidden",
+			"message": "Methodes or Admin access required",
+		})
+	}
+
+	searchQuery := ctx.Request().Query("query", "")
+
+	query := facades.Orm().Query()
+	if searchQuery != "" {
+		query = query.Where("title LIKE ?", "%"+searchQuery+"%")
+	}
+
+	var categories []models.Category
+	if err := query.OrderBy("title", "asc").Find(&categories); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to retrieve category options",
+		})
+	}
+
+	options := make([]http.Json, 0, len(categories))
+	for _, c := range categories {
+		options = append(options, http.Json{
+			"value": c.ID,
+			"label": c.Title,
+		})
+	}
+
+	return ctx.Response().Status(200).Json(http.Json{
+		"options": options,
+	})
+}

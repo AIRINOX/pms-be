@@ -416,3 +416,39 @@ func (r *StorageLocationController) Destroy(ctx http.Context) http.Response {
 		"message": "Storage location deleted successfully",
 	})
 }
+
+func (r *StorageLocationController) Select(ctx http.Context) http.Response {
+	if !r.isMethodesOrAdmin(ctx) {
+		return ctx.Response().Status(403).Json(http.Json{
+			"error":   "Forbidden",
+			"message": "Methodes or Admin access required",
+		})
+	}
+
+	searchQuery := ctx.Request().Query("query", "")
+
+	query := facades.Orm().Query()
+	if searchQuery != "" {
+		query = query.Where("name LIKE ?", "%"+searchQuery+"%")
+	}
+
+	var storageLocations []models.StorageLocation
+	if err := query.OrderBy("name", "asc").Find(&storageLocations); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to retrieve storage location options",
+		})
+	}
+
+	options := make([]http.Json, 0, len(storageLocations))
+	for _, s := range storageLocations {
+		options = append(options, http.Json{
+			"value": s.ID,
+			"label": s.Name,
+		})
+	}
+
+	return ctx.Response().Status(200).Json(http.Json{
+		"options": options,
+	})
+}

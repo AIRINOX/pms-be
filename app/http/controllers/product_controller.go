@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/goravel/framework/contracts/http"
@@ -1224,4 +1225,149 @@ func (r *ProductController) GetImages(ctx http.Context) http.Response {
 	return ctx.Response().Status(200).Json(http.Json{
 		"images": images,
 	})
+}
+
+// BulkUpdateVariantRequest represents a single product variant update in bulk
+type BulkUpdateVariantRequest struct {
+	ID        uint     `json:"id"`
+	SKU       *string  `json:"sku"`
+	PrixAchat *float64 `json:"prix_achat"`
+	PrixVente *float64 `json:"prix_vente"`
+	Title     *string  `json:"title"`
+	IsActive  *bool    `json:"is_active"`
+}
+
+// ListAllVariantsForBulkEdit returns product variants for bulk editing without pagination
+func (r *ProductController) ListAllVariantsForBulkEdit(ctx http.Context) http.Response {
+	if !r.isMethodesOrAdmin(ctx) {
+		return ctx.Response().Status(403).Json(http.Json{
+			"error":   "Forbidden",
+			"message": "Methodes or Admin access required",
+		})
+	}
+
+	searchQuery := ctx.Request().Query("q", "")
+
+	// If no search query, return empty array
+	if searchQuery == "" {
+		return ctx.Response().Status(200).Json(http.Json{
+			"variants": []models.ProductVariant{},
+		})
+	}
+
+	query := facades.Orm().Query()
+
+	// Apply search filter
+	query = query.Where("title LIKE ? OR sku LIKE ?",
+		"%"+searchQuery+"%", "%"+searchQuery+"%")
+
+	// Limit results to prevent performance issues
+	query = query.Limit(100)
+
+	var variants []models.ProductVariant
+	if err := query.Find(&variants); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to retrieve product variants",
+		})
+	}
+
+	return ctx.Response().Status(200).Json(http.Json{
+		"variants": variants,
+	})
+}
+
+// BulkUpdateVariants updates multiple product variants at once
+func (r *ProductController) BulkUpdateVariants(ctx http.Context) http.Response {
+	if !r.isMethodesOrAdmin(ctx) {
+		return ctx.Response().Status(403).Json(http.Json{
+			"error":   "Forbidden",
+			"message": "Methodes or Admin access required",
+		})
+	}
+
+	// i have request body like { "updates": [ { ... }, { ... } ] }
+	// so i need to bind to a struct with "updates" field
+	var requestBody struct {
+		Updates []BulkUpdateVariantRequest `json:"updates"`
+	}
+
+	// Validate request
+	if err := ctx.Request().Bind(&requestBody); err != nil {
+		return ctx.Response().Status(400).Json(http.Json{
+			"error":   "Invalid request data",
+			"message": err.Error(),
+		})
+	}
+
+	updates := requestBody.Updates
+
+	// Start transaction
+	tx, err := facades.Orm().Query().Begin()
+	if err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to start transaction",
+		})
+	}
+
+	updatedCount := 0
+	errorCount := 0
+	errors := []string{}
+
+	for _, update := range updates {
+		// Find the product variant
+		var variant models.ProductVariant
+		if err := tx.Where("id", update.ID).First(&variant); err != nil {
+			errorCount++
+			errors = append(errors, fmt.Sprintf("Product Variant ID %d not found", update.ID))
+			continue
+		}
+
+		// Update fields if provided
+		if update.SKU != nil {
+			variant.SKU = *update.SKU
+		}
+		if update.PrixAchat != nil {
+			variant.PrixAchat = *update.PrixAchat
+		}
+		if update.PrixVente != nil {
+			variant.PrixVente = *update.PrixVente
+		}
+		if update.Title != nil {
+			variant.Title = *update.Title
+		}
+		if update.IsActive != nil {
+			variant.IsActive = *update.IsActive
+		}
+
+		// Save the product variant
+		if err := tx.Save(&variant); err != nil {
+			errorCount++
+			errors = append(errors, fmt.Sprintf("Failed to update Product Variant ID %d: %s", update.ID, err.Error()))
+			continue
+		}
+
+		updatedCount++
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return ctx.Response().Status(500).Json(http.Json{
+			"error":   "Database error",
+			"message": "Failed to commit transaction",
+		})
+	}
+
+	response := http.Json{
+		"message":       "Bulk update completed",
+		"updated_count": updatedCount,
+		"error_count":   errorCount,
+	}
+
+	if len(errors) > 0 {
+		response["errors"] = errors
+	}
+
+	return ctx.Response().Status(200).Json(response)
 }

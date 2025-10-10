@@ -64,6 +64,9 @@ func Api() {
 
 		// Delete storage location
 		router.Delete("/storage-locations/{id}", storageLocationController.Destroy)
+
+		// Select options for storage locations
+		router.Get("/storage-locations/select", storageLocationController.Select)
 	})
 
 	// Category management routes (methodes/admin only)
@@ -86,6 +89,9 @@ func Api() {
 
 		// Delete category
 		router.Delete("/categories/{id}", categoryController.Destroy)
+
+		// Select options for categories
+		router.Get("/categories/select", categoryController.Select)
 	})
 
 	// Product/Product management routes (methodes/admin only)
@@ -118,6 +124,9 @@ func Api() {
 		router.Post("/products/{id}/variants", productController.CreateVariant)
 		router.Get("/products/{id}/variants", productController.GetVariants)
 
+		// Bulk edit routes
+		router.Get("/products/bulk/search", productController.ListAllVariantsForBulkEdit)
+		router.Post("/products/bulk/update", productController.BulkUpdateVariants)
 		// Note: Step 5 (Define storage location) is handled in the main product creation/update
 		// Note: Step 6 (Define recipe) will be implemented separately as recipe management
 	})
