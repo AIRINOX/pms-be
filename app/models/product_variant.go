@@ -16,7 +16,7 @@ type ProductVariant struct {
 	Unit        string  `gorm:"size:50"`
 	ImageURL    string  `gorm:"size:500"`
 	ImageIndex  int     `gorm:"default:0"`
-	IsActive    bool    `gorm:"not null;default:true;index"`
+	IsActive    bool    `gorm:"not null;index"`
 
 	// Relationships
 	Product           Product            `gorm:"foreignKey:ProductID"`

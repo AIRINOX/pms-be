@@ -20,7 +20,6 @@ func (r *M20240101000012CreateProductVariantsTable) Up() error {
 		table.String("title", 255).Nullable()
 		table.Text("description").Nullable()
 		table.String("sku", 100).Nullable()
-		table.Unique("sku")
 		table.Json("attributes")
 		table.Decimal("prix_achat").Nullable()
 		table.Decimal("prix_vente").Nullable()

@@ -1,13 +1,8 @@
 package controllers
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/goravel/framework/contracts/http"
 	"github.com/goravel/framework/errors"
@@ -69,10 +64,13 @@ type ProductVariantOption struct {
 
 // ProductVariantRequest represents a product variant in the request
 type ProductVariantRequest struct {
-	SKU      string                 `json:"sku"`
-	Price    float64                `json:"price"`
-	Quantity int                    `json:"quantity"`
-	Options  []ProductVariantOption `json:"options"`
+	SKU       string                 `json:"sku"`
+	PrixAchat float64                `json:"prix_achat"`
+	PrixVente float64                `json:"prix_vente"`
+	Quantity  int                    `json:"quantity"`
+	Options   []ProductVariantOption `json:"options"`
+	IsActive  bool                   `json:"is_active"`
+	ImageURL  string                 `json:"image_url"`
 }
 
 // ProductImageRequest represents a product image in the request
@@ -92,6 +90,7 @@ type CompleteProductUpdateRequest struct {
 	Attributes    []ProductAttributeOption `json:"attributes"`
 	Variants      []ProductVariantRequest  `json:"variants"`
 	Images        []ProductImageRequest    `json:"images"`
+	Unit          string                   `json:"unit" validate:"max_len:50"`
 }
 
 // CreateAttributeRequest represents the attribute creation request
@@ -118,7 +117,7 @@ type CreateVariantRequest struct {
 
 // CreateImageRequest represents the image upload request
 type CreateImageRequest struct {
-	FilePath   string `json:"file_path" form:"file_path" validate:"required|max_len:500"`
+	FileUrl    string `json:"file_url" form:"file_url" validate:"required|max_len:500"`
 	FileName   string `json:"file_name" form:"file_name" validate:"required|max_len:255"`
 	ImageIndex int    `json:"image_index" form:"image_index"`
 	IsPrimary  bool   `json:"is_primary" form:"is_primary"`
@@ -439,21 +438,29 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 	}
 
 	// Verify category exists
-	var category models.Category
+	var category *models.Category
 	if err := facades.Orm().Query().Where("id", request.CategoryID).FirstOrFail(&category); err != nil {
-		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Invalid category",
-			"message": "The specified category does not exist",
-		})
+		if !errors.Is(err, errors.OrmRecordNotFound) {
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to retrieve category",
+			})
+		} else {
+			category = nil
+		}
 	}
 
 	// Verify storage location exists
-	var location models.StorageLocation
+	var location *models.StorageLocation
 	if err := facades.Orm().Query().Where("id", request.LocationID).FirstOrFail(&location); err != nil {
-		return ctx.Response().Status(400).Json(http.Json{
-			"error":   "Invalid storage location",
-			"message": "The specified storage location does not exist",
-		})
+		if !errors.Is(err, errors.OrmRecordNotFound) {
+			return ctx.Response().Status(500).Json(http.Json{
+				"error":   "Database error",
+				"message": "Failed to retrieve storage location",
+			})
+		} else {
+			location = nil
+		}
 	}
 
 	// Start a transaction
@@ -467,11 +474,27 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 
 	// Update product basic info
 	product.Title = request.Title
-	product.CategoryID = &request.CategoryID
-	product.LocationID = &request.LocationID
+	if category != nil {
+		product.CategoryID = &request.CategoryID
+	} else {
+		product.CategoryID = nil
+	}
+	if location != nil {
+		product.LocationID = &request.LocationID
+	} else {
+		product.LocationID = nil
+	}
 	product.PrixAchat = request.PrixAchat
 	product.PrixVente = request.PrixVente
 	product.IsRawMaterial = request.IsRawMaterial
+	product.Unit = request.Unit
+	// get first primary image from request.images
+	for _, image := range request.Images {
+		if image.IsPrimary {
+			product.ImageURL = image.URL
+			break
+		}
+	}
 
 	if err := tx.Save(&product); err != nil {
 		tx.Rollback()
@@ -572,13 +595,34 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 		}
 
 		// Create variant
+		// get index by filter of request.Images
+		images := request.Images
+		var imageIndex int
+		imageIndex = -1
+		for index, image := range images {
+			if image.URL == variant.ImageURL {
+				imageIndex = index
+				break
+			}
+		}
+		variantTitle := product.Title + " - "
+		for _, value := range optionsMap {
+			variantTitle += " " + value
+		}
+
+		// variantTitle += " " + strconv.FormatBool(variant.IsActive)
+
 		newVariant := models.ProductVariant{
 			ProductID:  product.ID,
-			Title:      product.Title,
+			Title:      variantTitle,
 			SKU:        variant.SKU,
 			Attributes: string(optionsJSON),
-			PrixVente:  variant.Price,
-			IsActive:   true,
+			PrixVente:  variant.PrixVente,
+			PrixAchat:  variant.PrixAchat,
+			IsActive:   variant.IsActive,
+			ImageURL:   variant.ImageURL,
+			ImageIndex: imageIndex,
+			Unit:       request.Unit,
 		}
 
 		if err := tx.Create(&newVariant); err != nil {
@@ -605,23 +649,11 @@ func (r *ProductController) Update(ctx http.Context) http.Response {
 		if image.URL == "" || image.URL == "data:image/jpeg;base64," {
 			continue
 		}
-		// i want save url as file theen will put the url of file in file path
-		// i will use file name to save file in storage
-		fileName := "image_" + strconv.Itoa(i+1) + ".jpg"
-		filePath := "storage/products/" + fileName
-		// i will save file in storage
-		if err := r.saveBase64Image(image.URL, filePath); err != nil {
-			tx.Rollback()
-			return ctx.Response().Status(500).Json(http.Json{
-				"error":   "File error",
-				"message": "Failed to save image",
-			})
-		}
 
 		newImage := models.ProductImage{
 			ProductID:  product.ID,
-			FilePath:   filePath,
-			FileName:   fileName,
+			FileUrl:    image.URL,
+			FileName:   "image_" + strconv.Itoa(i+1),
 			ImageIndex: i,
 			IsPrimary:  image.IsPrimary,
 		}
@@ -871,30 +903,6 @@ func (r *ProductController) CreateAttribute(ctx http.Context) http.Response {
 	})
 }
 
-// saveBase64Image decodes a base64 image string and saves it to the specified file path
-func (r *ProductController) saveBase64Image(base64String string, filePath string) error {
-	// Extract the base64 data from the data URL
-	parts := strings.Split(base64String, ",")
-	if len(parts) != 2 {
-		return errors.New("invalid base64 image format")
-	}
-
-	// Decode the base64 string
-	data, err := base64.StdEncoding.DecodeString(parts[1])
-	if err != nil {
-		return err
-	}
-
-	// Ensure the directory exists
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	// Write the file
-	return ioutil.WriteFile(filePath, data, 0644)
-}
-
 // CreateImages uploads multiple images for an product (Step 3: Upload multiple images)
 func (r *ProductController) CreateImages(ctx http.Context) http.Response {
 	if !r.isMethodesOrAdmin(ctx) {
@@ -946,12 +954,12 @@ func (r *ProductController) CreateImages(ctx http.Context) http.Response {
 	for _, imageReq := range request {
 		// Validate each image request
 		validator, err := facades.Validation().Make(map[string]any{
-			"file_path":   imageReq.FilePath,
+			"file_url":    imageReq.FileUrl,
 			"file_name":   imageReq.FileName,
 			"image_index": imageReq.ImageIndex,
 			"is_primary":  imageReq.IsPrimary,
 		}, map[string]string{
-			"file_path":   "required|max_len:500",
+			"file_url":    "required|max_len:500",
 			"file_name":   "required|max_len:255",
 			"image_index": "numeric",
 			"is_primary":  "bool",
@@ -977,7 +985,7 @@ func (r *ProductController) CreateImages(ctx http.Context) http.Response {
 
 		image := models.ProductImage{
 			ProductID:  uint(productIDUint),
-			FilePath:   imageReq.FilePath,
+			FileUrl:    imageReq.FileUrl,
 			FileName:   imageReq.FileName,
 			ImageIndex: imageReq.ImageIndex,
 			IsPrimary:  imageReq.IsPrimary,

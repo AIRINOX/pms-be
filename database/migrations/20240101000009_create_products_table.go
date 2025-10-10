@@ -19,7 +19,6 @@ func (r *M20240101000009CreateProductsTable) Up() error {
 		table.String("title", 255)
 		table.Text("description").Nullable()
 		table.String("sku", 100).Nullable()
-		table.Unique("sku")
 		table.Boolean("is_raw_material").Default(false)
 		table.UnsignedBigInteger("category_id").Nullable()
 		table.UnsignedBigInteger("location_id").Nullable()
