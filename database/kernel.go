@@ -37,7 +37,6 @@ func (kernel Kernel) Migrations() []schema.Migration {
 		&migrations.M20240101000015CreateOrderFabricationsTable{},              // depends on products, product_variants, clients, client_sites, users
 		&migrations.M20240101000016CreateStockMovementsTable{},                 // depends on products, product_variants, storage_locations, users
 		&migrations.M20240101000017CreateStockLevelsTable{},                    // depends on products, product_variants, storage_locations
-		&migrations.M20240101000018CreateRecipeProductItemsTable{},             // depends on recipe_products, products
 		&migrations.M20240101000019CreateRecipeVariantsTable{},                 // depends on products, product_variants
 		&migrations.M20240101000020CreateRecipeVariantItemsTable{},             // depends on recipe_variants, product_variants
 		&migrations.M20240101000021CreateProductionOfHistoryTable{},            // depends on order_fabrications, operations, users

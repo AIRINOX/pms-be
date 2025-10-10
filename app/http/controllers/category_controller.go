@@ -528,7 +528,7 @@ func (r *CategoryController) Select(ctx http.Context) http.Response {
 	}
 
 	var categories []models.Category
-	if err := query.OrderBy("title", "asc").Find(&categories); err != nil {
+	if err := query.OrderBy("title", "asc").Limit(20).Find(&categories); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve category options",

@@ -28,7 +28,7 @@ func (r *M20240101000025CreateFicheConceptionsTable) Up() error {
 		table.Timestamp("validated_at").Nullable()
 		table.TimestampsTz()
 
-		table.Foreign("product_variant_id").References("id").On("products")
+		table.Foreign("product_variant_id").References("id").On("product_variants")
 		table.Foreign("requested_by").References("id").On("users")
 		table.Foreign("validated_by").References("id").On("users")
 

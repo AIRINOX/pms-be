@@ -15,15 +15,21 @@ func (r *M20240101000014CreateRecipeProductsTable) Signature() string {
 // Up Run the migrations.
 func (r *M20240101000014CreateRecipeProductsTable) Up() error {
 	return facades.Schema().Create("recipe_products", func(table schema.Blueprint) {
-		table.ID("id")
-		table.String("title", 255)
-		table.Text("description").Nullable()
-		table.UnsignedBigInteger("product_id")
-		table.TimestampsTz()
-
 		table.Foreign("product_id").References("id").On("products")
 		table.Index("product_id")
 		table.Index("title")
+
+		table.ID("id")
+		table.UnsignedBigInteger("product_id")
+		table.UnsignedBigInteger("material_product_id")
+		table.Text("notes").Nullable()
+		table.TimestampsTz()
+
+		table.Foreign("product_id").References("id").On("products")
+		table.Foreign("material_product_id").References("id").On("products")
+
+		table.Index("product_id")
+		table.Index("material_product_id")
 	})
 }
 

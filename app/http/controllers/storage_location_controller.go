@@ -433,7 +433,7 @@ func (r *StorageLocationController) Select(ctx http.Context) http.Response {
 	}
 
 	var storageLocations []models.StorageLocation
-	if err := query.OrderBy("name", "asc").Find(&storageLocations); err != nil {
+	if err := query.OrderBy("name", "asc").Limit(20).Find(&storageLocations); err != nil {
 		return ctx.Response().Status(500).Json(http.Json{
 			"error":   "Database error",
 			"message": "Failed to retrieve storage location options",
